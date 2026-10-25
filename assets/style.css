@@ -207,16 +207,21 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
 
 /* ---------- sticky player ---------- */
 .player{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface);
-  border-top:1px solid var(--line-2);padding-bottom:env(safe-area-inset-bottom,0)}
+  border-top:1px solid var(--line-2);padding-bottom:env(safe-area-inset-bottom,0);overflow-anchor:none}
+#newList{overflow-anchor:none}
 .wave{position:relative;height:46px;width:100%;background:var(--surface-2);cursor:pointer;touch-action:none;
   outline-offset:-2px;transition:background .2s}
 .wave:hover,.wave:focus-visible{background:#191A1D}
 .wave:focus-visible{outline:2px solid var(--accent)}
-#waveCanvas{display:block;width:100%;height:46px}
+#waveCanvas{display:block;width:100%;height:46px;transition:opacity .2s ease}
 .player-bar{max-width:1120px;margin:0 auto;padding:10px var(--pad) 12px;
   display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px}
 .np{display:flex;align-items:center;gap:14px;min-width:0}
-.np-cover{width:52px;height:52px;border-radius:3px}
+.np-cover-box{position:relative;width:52px;height:52px;border-radius:3px;flex:0 0 auto;
+  overflow:hidden;isolation:isolate;background-color:#0B0B0D}
+.np-cover{position:absolute;inset:0;width:100%;height:100%;border-radius:0;opacity:0;
+  transition:opacity .28s ease}
+.np-cover.is-on{opacity:1}
 .np .t{display:flex;flex-direction:column;min-width:0}
 .np-name{font-family:var(--serif);font-size:17px;font-weight:600;line-height:1.2;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -263,7 +268,7 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
   .np{grid-area:np}
   .ctrls{grid-area:ctrls}
   .side{grid-area:side;justify-content:space-between}
-  .np-cover{width:44px;height:44px}
+  .np-cover-box{width:44px;height:44px}
   .ctrls .btn{width:44px;height:44px}
   .ctrls .btn.play{width:48px;height:48px}
   .rel-head{grid-template-columns:auto minmax(0,1fr) auto}

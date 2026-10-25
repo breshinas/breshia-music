@@ -12,6 +12,9 @@
 
   var LS_TRACK = "breshia.track", LS_VOL = "breshia.vol", LS_MUTE = "breshia.muted";
 
+  /* honour the OS "reduce motion" setting: swap instantly instead of fading */
+  var REDUCE_MOTION = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
   var MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
     "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 
@@ -82,7 +85,30 @@
     " · " + ARCHIVE.length + " " + plural(ARCHIVE.length, "ранний релиз", "ранних релиза", "ранних релизов") +
     " · с " + minYear();
   $("footSite").textContent = SITE;
-  $("lyricsNote").textContent = B.lyricsNote || "";
+
+  /* ==================== lyrics block (flag-driven) ==================== */
+  /* window.BRESHIA.lyrics.enabled === false  →  remove the #lyrics section and
+     renumber the remaining section counters. Flip the flag back to true and the
+     block plus its numbering return with no code change. */
+  var LYR = B.lyrics || {};
+  var lyricsOn = (LYR.enabled === true) || (B.lyricsEnabled === true);
+  if (!lyricsOn) {
+    var lsec = $("lyrics");
+    if (lsec && lsec.parentNode) lsec.parentNode.removeChild(lsec);
+  }
+  var lyricsNoteEl = $("lyricsNote");
+  if (lyricsNoteEl) lyricsNoteEl.textContent = B.lyricsNote || LYR.note || "";
+  /* relabel "NN / Label" sequentially over the sections that remain in the DOM */
+  (function renumberSections() {
+    var nEls = document.querySelectorAll("main > section .sec-head .n");
+    for (var k = 0; k < nEls.length; k++) {
+      var raw = nEls[k].textContent || "";
+      var m = /^\s*\d+\s*\/\s*([\s\S]*)$/.exec(raw);
+      var lbl = m ? m[1] : raw.replace(/^\s+|\s+$/g, "");
+      var num = k + 1;
+      nEls[k].textContent = (num < 10 ? "0" : "") + num + " / " + lbl;
+    }
+  })();
 
   /* links */
   (function () {
@@ -229,6 +255,47 @@
   var waveWrap = $("seek"), waveCanvas = $("waveCanvas"), seekText = $("seekText");
   var pCover = $("pCover"), pName = $("pName"), pSub = $("pSub");
   var tNow = $("tNow"), tRem = $("tRem");
+
+  /* --- player cover crossfade: two stacked layers, never an instant swap --- */
+  var coverLayers = pCover ? Array.prototype.slice.call(pCover.querySelectorAll(".np-cover")) : [];
+  var coverCur = 0;
+  if (coverLayers.length) {
+    coverLayers[0].classList.add("is-on");
+    coverLayers.forEach(function (el) {
+      el.addEventListener("transitionend", function (e) {
+        if (e.propertyName !== "opacity") return;
+        if (!el.classList.contains("is-on")) el.style.backgroundImage = "none"; /* drop the faded-out art */
+      });
+    });
+  }
+  function setCover(url) {
+    if (!coverLayers.length) {                       /* fallback: single layer */
+      if (pCover) pCover.style.backgroundImage = url ? "url('" + url + "')" : "none";
+      return;
+    }
+    var active = coverLayers[coverCur];
+    var next = coverLayers[1 - coverCur];
+    if (!url) {                                      /* neutral state */
+      active.classList.remove("is-on");
+      next.classList.remove("is-on");
+      return;
+    }
+    next.style.backgroundImage = "url('" + url + "')";
+    void next.offsetWidth;                           /* flush style so it fades from 0 */
+    next.classList.add("is-on");
+    active.classList.remove("is-on");
+    coverCur = 1 - coverCur;                         /* the two layers trade places */
+  }
+
+  /* --- waveform: soften the redraw on a track switch by fading the canvas --- */
+  var waveTimer = 0;
+  function waveFlash() {
+    if (!waveCanvas) return;
+    if (REDUCE_MOTION) { waveCanvas.style.opacity = ""; return; }
+    waveCanvas.style.opacity = "0";
+    if (waveTimer) clearTimeout(waveTimer);
+    waveTimer = setTimeout(function () { waveTimer = 0; waveCanvas.style.opacity = ""; }, 130);
+  }
   var playBtn = $("toggle"), prevBtn = $("prev"), nextBtn = $("next"), heroPlay = $("play");
   var muteBtn = $("mute"), volInput = $("vol"), player = $("player");
   var heroCd = $("heroCountdown");
@@ -323,7 +390,7 @@
 
   function renderMeta() {
     if (cur < 0) {
-      pCover.style.backgroundImage = "none";
+      setCover(null);
       pName.textContent = "Выберите трек";
       pSub.textContent = ARTIST;
       tRem.textContent = "-0:00";
@@ -331,7 +398,7 @@
       return;
     }
     var t = NEW[cur];
-    pCover.style.backgroundImage = "url('" + t.cover + "')";
+    setCover(t.cover);
     pName.textContent = t.title;
     pSub.textContent = ARTIST + " · " + t.year;
     tRem.textContent = "-" + fmt(t.duration);
@@ -344,6 +411,7 @@
     if (i < 0 || i >= NEW.length || !isPlayable(NEW[i])) return;   /* teasers are never loaded */
     cur = i;
     var t = NEW[cur];
+    waveFlash();                 /* dim the wave so new peaks don't pop in */
     audio.src = t.audio;          /* src set only at the moment of choosing */
     audio.load();
     try { localStorage.setItem(LS_TRACK, String(cur)); } catch (e) {}
