@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breshia — музыка</title>
+<meta name="description" content="Breshia — электронный проект. Новые треки, ранние релизы и ссылки на площадки.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<audio id="audio" preload="metadata"></audio>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero" id="hero">
+  <div class="hero-art" id="heroArt" aria-hidden="true"></div>
+  <div class="hero-veil" aria-hidden="true"></div>
+
+  <div class="hero-inner">
+    <div class="hero-text">
+      <p class="eyebrow">Breshia · <b>новое</b> · 2026</p>
+      <h1 class="band">Bre<em>shia</em></h1>
+      <p class="meta-line" id="heroLine">2026 · Девочка с лопатой</p>
+      <p class="tagline" id="heroStats"></p>
+      <div class="countdown" id="heroCountdown" role="timer" aria-label="До премьеры" hidden></div>
+      <div class="hero-actions">
+        <button class="btn play big is-soon" id="play" type="button" aria-label="Премьера 31 октября. Воспроизведение пока недоступно" aria-disabled="true" disabled>
+          <svg class="i-play" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+          <svg class="i-pause" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg>
+          <span class="spin" aria-hidden="true"></span>
+          <span class="label">Скоро — 31 октября</span>
+        </button>
+        <a class="ghost" href="#new">Новое<span class="arw" aria-hidden="true">↓</span></a>
+      </div>
+    </div>
+
+    <figure class="hero-cover">
+      <img id="heroCover" src="" alt="" width="480" height="480" decoding="async">
+      <figcaption id="heroCap"></figcaption>
+    </figure>
+  </div>
+
+  <div class="scrollcue" aria-hidden="true"><i></i><span>Листайте</span></div>
+</header>
+
+<main>
+
+  <!-- ==================== 01 / Новое ==================== -->
+  <section id="new">
+    <div class="sec-head">
+      <span class="n">01 / Новое</span>
+      <h2>Новое</h2>
+      <p>Два трека 2026 года уже вышли — нажмите, чтобы слушать. Премьера «Девочки с лопатой» — 31 октября.</p>
+    </div>
+    <div class="tracks" id="newList"></div>
+  </section>
+
+  <!-- ==================== 02 / Текст песни ==================== -->
+  <section id="lyrics">
+    <div class="sec-head">
+      <span class="n">02 / Текст песни</span>
+      <h2>Текст песни</h2>
+    </div>
+    <div class="lyrics-empty">
+      <span class="lyrics-mark" aria-hidden="true">“”</span>
+      <p id="lyricsNote"></p>
+    </div>
+  </section>
+
+  <!-- ==================== 03 / Ранние релизы ==================== -->
+  <section id="archive">
+    <div class="sec-head">
+      <span class="n">03 / Ранние релизы</span>
+      <h2>Ранние релизы</h2>
+      <p>Записи 2014–2024 годов. Раскройте релиз, чтобы увидеть треклист.</p>
+    </div>
+    <div class="rels" id="archiveList"></div>
+  </section>
+
+  <!-- ==================== 04 / Где слушать ==================== -->
+  <section id="listen">
+    <div class="sec-head">
+      <span class="n">04 / Где слушать</span>
+      <h2>Где слушать</h2>
+    </div>
+    <ul class="links" id="linkList"></ul>
+  </section>
+
+</main>
+
+<footer>
+  <span>© 2026 Breshia</span>
+  <span id="footSite">breshia-music.ru</span>
+</footer>
+
+<!-- ==================== STICKY PLAYER ==================== -->
+<div class="player" id="player">
+  <div class="wave" id="seek" role="slider" tabindex="0"
+       aria-label="Позиция трека" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0:00 из 0:00">
+    <canvas id="waveCanvas" aria-hidden="true"></canvas>
+    <span class="sr-only" id="seekText">0:00 из 0:00</span>
+  </div>
+
+  <div class="player-bar">
+    <div class="np">
+      <span class="cover np-cover" id="pCover" aria-hidden="true"></span>
+      <span class="t">
+        <span class="np-name" id="pName">—</span>
+        <span class="np-sub" id="pSub">Breshia</span>
+      </span>
+    </div>
+
+    <div class="ctrls">
+      <button class="btn" id="prev" type="button" aria-label="Предыдущий трек">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 3h2v10H4zM13 3v10L6 8z"/></svg>
+      </button>
+      <button class="btn play" id="toggle" type="button" aria-label="Воспроизвести" aria-pressed="false">
+        <svg class="i-play" width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+        <svg class="i-pause" width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg>
+        <span class="spin" aria-hidden="true"></span>
+      </button>
+      <button class="btn" id="next" type="button" aria-label="Следующий трек">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10 3h2v10h-2zM3 3l7 5-7 5z"/></svg>
+      </button>
+    </div>
+
+    <div class="side">
+      <span class="times"><span class="t-now" id="tNow">0:00</span><span class="t-sep">/</span><span class="t-rem" id="tRem">-0:00</span></span>
+      <span class="vol">
+        <button class="vol-btn" id="mute" type="button" aria-label="Выключить звук" aria-pressed="false">
+          <svg class="i-vol" width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2 4.5 5H2v6h2.5L8 14z"/><path d="M10.5 5.2a4 4 0 0 1 0 5.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <svg class="i-muted" width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2 4.5 5H2v6h2.5L8 14z"/><path d="M10.6 6 14 9.4M14 6l-3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <input class="vol-range" id="vol" type="range" min="0" max="1" step="0.01" value="0.9" aria-label="Громкость">
+      </span>
+    </div>
+  </div>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
