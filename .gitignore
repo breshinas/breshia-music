@@ -4,3 +4,6 @@ shot-*.png
 *.log
 Thumbs.db
 .DS_Store
+
+# локальные заметки по эксплуатации — в репозиторий не идут
+README.local.md
