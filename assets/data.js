@@ -26761,6 +26761,20 @@ window.BRESHIA = {
    "url": "https://soundcloud.com/breshia"
   }
  ],
+ "metrics": {
+  "yandexCounter": null,
+  "endpoint": null,
+  "note": "Счётчик Яндекс.Метрики для сайта: номер из кабинета владельца (metrika.yandex.ru). Пока null — код событий на сайте спит, ничего не отправляется. Цели, по которым считаем прослушивания: play, play_30, play_50, finish, skip. Цифры для счётчиков на сайте собирает tools/metrics.py (pull) через API Метрики и кладёт в site/assets/stats.js.",
+  "goals": [
+   "play",
+   "play_30",
+   "play_50",
+   "finish",
+   "skip"
+  ],
+  "tokenEnv": "METRICA_TOKEN (файл C:/R/home/metrika.env или elf.env)",
+  "statsSource": "site/assets/stats.js (генерируется tools/metrics.py, руками не править)"
+ },
  "policy": {
   "streaming": "Музыка из стримингов фиксируется ТОЛЬКО как ссылка: стриминги отдают куцые превью, встраивать их нельзя.",
   "ownSite": "На своём сайте публикуются только ПОЛНЫЕ варианты (full.status == 'есть' и published == true).",
