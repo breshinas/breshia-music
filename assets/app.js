@@ -166,11 +166,16 @@
   var cards = [];         // {art, btn, canvas, i}
   var activeCanvas = null;
 
+  /* подпись под названием: год · альбом · длительность (что есть, то и показываем) */
+  function subLine(t) {
+    return [t.year || null, t.album || null, t.durationText || null].filter(Boolean).join(" · ");
+  }
+
   function playableInner(t) {
     return '<img class="cover" src="' + esc(t.cover) + '" alt="Обложка «' + esc(t.title) + '»" width="96" height="96" loading="lazy" decoding="async">' +
       '<div class="tc-body">' +
         '<h3 class="tc-title">' + esc(t.title) + '</h3>' +
-        '<p class="tc-sub">' + t.year + " · " + esc(t.durationText) + '</p>' +
+        '<p class="tc-sub">' + esc(subLine(t)) + '</p>' +
       '</div>' +
       '<canvas class="tc-wave" aria-hidden="true"></canvas>' +
       '<div class="tc-right">' +
@@ -185,7 +190,7 @@
     return '<img class="cover" src="' + esc(t.cover) + '" alt="Обложка «' + esc(t.title) + '»" width="96" height="96" loading="lazy" decoding="async">' +
       '<div class="tc-body">' +
         '<h3 class="tc-title">' + esc(t.title) + '</h3>' +
-        '<p class="tc-sub">' + t.year + " · премьера " + esc(releaseLabel(t)) + '</p>' +
+        '<p class="tc-sub">' + esc(subLine(t)) + " · премьера " + esc(releaseLabel(t)) + '</p>' +
       '</div>' +
       '<div class="tc-right tc-locked">' +
         '<span class="tc-badge"></span>' +
