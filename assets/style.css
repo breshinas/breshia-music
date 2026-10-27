@@ -341,3 +341,13 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
 @media (max-width:400px){
   .tc-count{display:none}
 }
+/* ---------- загрузка НЕ должна менять ширину широкой кнопки ----------
+   Было: в загрузке иконка скрывалась (display:none), а спиннер вставал В ПОТОК отдельным
+   элементом — кнопка ширилась на 26 px, строка .hero-actions переносилась на вторую строку,
+   герой подрастал, и вся страница ниже прыгала вниз (~57 px на телефоне) и возвращалась.
+   Теперь спиннер рисуется ПОВЕРХ места иконки и в потоке ничего не занимает. */
+.btn.big{position:relative}
+.btn.big .spin{position:absolute;left:22px;top:50%;margin-top:-8px;display:none}
+.btn.big.loading .spin{display:block;animation:rot .8s linear infinite}
+/* слот иконки сохраняем там, где она была видна до загрузки (у тизера вместо иконки точка — её не трогаем) */
+.btn.big.loading:not(.is-soon) .i-play{display:block;visibility:hidden}
