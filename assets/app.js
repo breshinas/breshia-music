@@ -81,7 +81,7 @@
   var heroPrefix = isDatedTeaser(featured) ? ("Премьера " + releaseLabel(featured) + " · ") : "";
   $("heroStats").textContent =
     heroPrefix +
-    NEW.length + " " + plural(NEW.length, "новый трек", "новых трека", "новых треков") +
+    NEW.length + " " + plural(NEW.length, "трек", "трека", "треков") +
     " · " + ARCHIVE.length + " " + plural(ARCHIVE.length, "ранний релиз", "ранних релиза", "ранних релизов") +
     " · с " + minYear();
   $("footSite").textContent = SITE;

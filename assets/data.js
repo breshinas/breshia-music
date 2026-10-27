@@ -1633,7 +1633,7 @@ window.BRESHIA = {
   },
   {
    "slug": "im-not-leaving-club-mix",
-   "title": "breshia - i'm not leaving(club mix)",
+   "title": "Breshia - i'm not leaving(club mix)",
    "year": 2014,
    "audio": "assets/audio/im-not-leaving-club-mix.mp3",
    "cover": "assets/cover/im-not-leaving-club-mix.jpg",
@@ -3801,7 +3801,7 @@ window.BRESHIA = {
   },
   {
    "slug": "desires",
-   "title": "Desires",
+   "title": "Breshia - Desires",
    "year": 2014,
    "audio": "assets/audio/desires.mp3",
    "cover": "assets/cover/desires.jpg",
