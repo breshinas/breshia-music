@@ -5,7 +5,7 @@ window.BRESHIA = {
  "new": [
   {
    "slug": "devochka",
-   "title": "Девочка с лопатой",
+   "title": "Breshia - Девочка с лопатой",
    "year": 2026,
    "cover": "assets/cover/devochka.jpg",
    "teaser": true,
@@ -17,7 +17,7 @@ window.BRESHIA = {
   },
   {
    "slug": "more",
-   "title": "Море на повторе",
+   "title": "Breshia - Море на повторе",
    "year": 2026,
    "audio": "assets/audio/more.mp3",
    "cover": "assets/cover/more.jpg",
@@ -554,7 +554,7 @@ window.BRESHIA = {
   },
   {
    "slug": "brilliants",
-   "title": "Бриллианты",
+   "title": "Breshia - Бриллианты",
    "year": 2026,
    "audio": "assets/audio/brilliants.mp3",
    "cover": "assets/cover/brilliants.jpg",
