@@ -103,6 +103,11 @@ h2{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.4vw,44px);lin
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .25s}
 .tc-sub{margin:6px 0 0;font-size:12.5px;color:var(--muted);letter-spacing:.06em;font-variant-numeric:tabular-nums}
 .track-card.is-active .tc-title{color:var(--accent)}
+/* фит — неглавный: своя строка под названием, мельче и приглушённо; название трека остаётся акцентом.
+   Отдельной строкой (а не в хвосте заголовка), иначе на узкой карточке фит срезался бы вместе с
+   названием; текст фита переносится, чтобы никогда не выезжать за карточку. `.is-active` его не
+   перекрашивает — свой color перебивает .track-card.is-active .tc-title. */
+.tc-feat{margin:4px 0 0;font-size:.78em;font-weight:400;color:var(--muted);letter-spacing:0;line-height:1.25}
 .tc-wave{width:100%;height:46px;display:block;pointer-events:none;min-width:0}
 .tc-right{display:flex;align-items:center;gap:16px}
 .tc-eq{display:flex;align-items:flex-end;gap:3px;height:22px;width:22px;pointer-events:none}

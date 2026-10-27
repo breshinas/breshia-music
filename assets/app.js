@@ -75,9 +75,10 @@
   $("heroArt").style.backgroundImage = "url('" + featured.cover + "')";
   var hc = $("heroCover");
   hc.src = featured.cover;
-  hc.alt = "Обложка «" + featured.title + "» (" + featured.year + ")";
-  $("heroCap").textContent = featured.title + " · " + featured.year;
-  $("heroLine").textContent = featured.year + " · " + featured.title;
+  var heroFeat = featured.feat ? " feat. " + featured.feat : "";
+  hc.alt = "Обложка «" + featured.title + "» (" + featured.year + ")" + heroFeat;
+  $("heroCap").textContent = featured.title + heroFeat + " · " + featured.year;
+  $("heroLine").textContent = featured.year + " · " + featured.title + heroFeat;
   var heroPrefix = isDatedTeaser(featured) ? ("Премьера " + releaseLabel(featured) + " · ") : "";
   $("heroStats").textContent =
     heroPrefix +
@@ -171,10 +172,18 @@
     return [t.year || null, t.album || null, t.durationText || null].filter(Boolean).join(" · ");
   }
 
+  /* фит — ОТДЕЛЬНОЙ строкой под названием, приглушённый; акцент остаётся на названии.
+     Строка своя (а не «в хвосте» названия), потому что заголовок обрезается многоточием:
+     в хвосте фит пропадал бы целиком на узких карточках. */
+  function featLine(t) {
+    return (t && t.feat) ? '<p class="tc-feat">feat. ' + esc(t.feat) + "</p>" : "";
+  }
+
   function playableInner(t) {
     return '<img class="cover" src="' + esc(t.cover) + '" alt="Обложка «' + esc(t.title) + '»" width="96" height="96" loading="lazy" decoding="async">' +
       '<div class="tc-body">' +
         '<h3 class="tc-title">' + esc(t.title) + '</h3>' +
+        featLine(t) +
         '<p class="tc-sub">' + esc(subLine(t)) + '</p>' +
       '</div>' +
       '<canvas class="tc-wave" aria-hidden="true"></canvas>' +
@@ -190,6 +199,7 @@
     return '<img class="cover" src="' + esc(t.cover) + '" alt="Обложка «' + esc(t.title) + '»" width="96" height="96" loading="lazy" decoding="async">' +
       '<div class="tc-body">' +
         '<h3 class="tc-title">' + esc(t.title) + '</h3>' +
+        featLine(t) +
         '<p class="tc-sub">' + esc(subLine(t)) + " · премьера " + esc(releaseLabel(t)) + '</p>' +
       '</div>' +
       '<div class="tc-right tc-locked">' +
@@ -387,7 +397,7 @@
     if (!("mediaSession" in navigator) || !window.MediaMetadata) return;
     try {
       navigator.mediaSession.metadata = new window.MediaMetadata({
-        title: t.title, artist: ARTIST, album: ARTIST + " · " + t.year,
+        title: t.title, artist: t.feat ? (ARTIST + " feat. " + t.feat) : ARTIST, album: ARTIST + " · " + t.year,
         artwork: [{ src: t.cover, sizes: "512x512", type: "image/jpeg" }]
       });
     } catch (e) { /* ignore */ }
