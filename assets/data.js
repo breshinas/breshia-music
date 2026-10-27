@@ -9,6 +9,7 @@ window.BRESHIA = {
    "year": 2026,
    "cover": "assets/cover/devochka.jpg",
    "teaser": true,
+   "album": "сингл",
    "releaseAt": "2026-10-31T00:00:00+03:00",
    "durationText": "3:06",
    "release": "Девочка с лопатой",
