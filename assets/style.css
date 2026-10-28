@@ -357,6 +357,26 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
   .track-card.is-teaser{grid-template-columns:84px minmax(0,1fr) auto}
   .tc-lock{display:none}
 }
+/* ---------- ТЕЛЕФОН: заголовок должен читаться целиком ----------
+   Было (все ширины): grid `… minmax(0,1fr) …` + `.tc-right` из трёх элементов
+   (эквалайзер 22 + длительность ~40 + play 44 и два gap по 16 ≈ 138 px) при
+   `padding-right:58px` под ♥. На 390 px колонка текста сжималась до ~100 px, и
+   `.tc-title` (nowrap + ellipsis) резался в «Девочка с …» / «Брил…».
+   Лечение (только ≤900, десктоп не трогаем):
+     • убираем из потока .tc-dur — длительность уже есть в .tc-sub (subLine год·альбом·длительность),
+       и .tc-eq — он aria-hidden и декоративен, состояние игры видно по .is-active/.is-playing;
+       освобождает ~78 px ширины под название;
+     • заголовку вместо nowrap даём перенос с ограничением в 3 строки.
+   Замер на 390 px: без .tc-eq колонка = 138 px; «Бриллианты» (116 px одним словом) влезает,
+   с .tc-eq оставалось 100 px и это односложное название (116>100) всё равно резалось — поэтому
+   .tc-eq тоже убираем.
+   Кламп — 3 строки, а не 2: «i'm not leaving(club mix)» и «Save me(original mix)» на 360/390
+   требуют 3 строки (естественная высота 69 px при строке ~23 px); при clamp=2 они обрезались. */
+@media (max-width:900px){
+  .tc-eq,.tc-dur{display:none}
+  .tc-title{white-space:normal;text-overflow:clip;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+}
 @media (max-width:720px){
   .track-card.is-teaser{grid-template-columns:64px minmax(0,1fr) auto}
   .tc-badge,.tc-count{font-size:11px}
@@ -536,3 +556,12 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
   .fav-top{padding:15px 14px}
 }
 @media (max-width:430px){ .fr-play{display:none} }
+
+/* ≤400 (узкие телефоны 360–390): колонка текста = card − padL − padR − 64(обложка) − 2·gap − 44(play).
+   При padR=58, gap=14 на 360 это 112 px, и однословные названия не влезали:
+   «Бриллианты» 116 px и токен «WowYeah(Dub Mix)» 124 px. Отдаём зазор сетки 14→10 и запас
+   под ♥ 58→52 (♥ = 44 px + 8 px от края = 52 px; play остаётся левее/на уровне ♥, под него не заходит).
+   360: 320−14−52−64−20−44 = 126 px ≥ 124. Блок стоит ПОСЛЕ правил ≤720, поэтому перебивает их. */
+@media (max-width:400px){
+  .track-card{gap:10px;padding-right:52px}
+}
