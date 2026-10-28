@@ -958,7 +958,10 @@
     var have = ts.filter(function (t) { return isFav(t.slug); }).length;
     var stack = ts.slice(0, 4).map(function (t) { return '<img src="' + esc(t.cover) + '" alt="">'; }).join("");
     var rows = ts.map(function (t) {
-      return '<li><img src="' + esc(t.cover) + '" alt="">' +
+      var ti = trackIndex(t.slug), can = ti >= 0 && isPlayable(NEW[ti]);
+      return '<li data-slug="' + esc(t.slug) + '"' +
+        (can ? ' tabindex="0" aria-label="Слушать: ' + esc(t.title) + '"' : "") + '>' +
+        '<img src="' + esc(t.cover) + '" alt="">' +
         '<span class="n">' + esc(t.title) + '</span>' +
         (isFav(t.slug) ? '<span class="have">уже у тебя</span>' : "") +
         '<span class="d">' + esc(t.durationText || "") + '</span></li>';
@@ -1004,7 +1007,27 @@
       if (note) note.textContent = added
         ? ("+" + added + " " + plural(added, "трек", "трека", "треков") + " в избранном — совпавшие не задвоились.")
         : "Все треки уже были в избранном — ничего не изменилось.";
+      return;
     }
+    /* клик по строке чужой подборки = играть этот трек (раньше работало только «Слушать всё») */
+    var li = e.target.closest(".pl-list li[data-slug]");
+    if (!li) return;
+    var fi = trackIndex(li.getAttribute("data-slug"));
+    if (fi < 0 || !isPlayable(NEW[fi])) return;
+    e.preventDefault();
+    var fq = foreignSlugs.map(trackIndex).filter(function (i) { return i >= 0 && isPlayable(NEW[i]); });
+    if (!fq.length) return;
+    queueMode = "foreign";
+    altQueue = fq;
+    loadTrack(fi, true);
+    closeForeign();
+  });
+  if (psBody) psBody.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    var li = e.target.closest(".pl-list li[data-slug]");
+    if (!li || !li.hasAttribute("tabindex")) return;
+    e.preventDefault();
+    li.click();
   });
 
   /* ==================== ссылки ?t=<slug> и #p=<slugs> ==================== */
