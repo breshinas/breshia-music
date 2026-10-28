@@ -11,6 +11,7 @@
   var LIME = "#C8F13A", BAR_IDLE = "#3A3A40", BAR_IDLE_SM = "#2E2E33";
 
   var LS_TRACK = "breshia.track", LS_VOL = "breshia.vol", LS_MUTE = "breshia.muted";
+  var LS_FAV = "breshia:fav";   /* личная подборка: JSON-массив слагов в порядке добавления */
 
   /* honour the OS "reduce motion" setting: swap instantly instead of fading */
   var REDUCE_MOTION = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -67,6 +68,143 @@
     playableIdx = n;
   }
   recomputePlayable();
+
+  /* ==================== входной тизер-хук (привязан к анонсу премьеры) ====================
+     Короткий фрагмент припева (≈20 с) играет ТОЛЬКО по нажатию человека — ни автоплея, ни
+     пилюли при входе. Хук привязан к первой видимой песне — анонсу «Девочка с лопатой»: пока
+     трек-источник не вышел, кнопка play в hero и клик по карточке анонса запускают #hookAudio.
+     Элемент отдельный — основной плеер (#audio), его очередь, избранное и медиасессию не трогаем.
+     Анонс НЕ входит в очередь (prev/next его не берут, ♥ на нём нет, в подборку не попадает).
+     Нет хука в данных (трек вышел) — всё работает как обычно: анонс просто стал полным треком. */
+  var HOOK = B.hook || null;
+  var hookEl = $("hookAudio");
+  var hookIdx = -1;             /* индекс анонса-хука в NEW; -1 — хука на сайте нет */
+  var hookPlaying = false;      /* прямо сейчас звучит */
+  var hookSel = false;          /* выбран/на паузе после запуска — для подсветки карточки */
+  var hookRaf = 0;
+
+  if (hookEl && HOOK && HOOK.audio) {
+    hookEl.src = HOOK.audio;
+    hookEl.preload = "auto";
+    for (var hookScan = 0; hookScan < NEW.length; hookScan++) {
+      if (NEW[hookScan].slug === HOOK.track && isDatedTeaser(NEW[hookScan])) { hookIdx = hookScan; break; }
+    }
+  }
+  function hasHook() { return hookIdx >= 0 && !!(HOOK && HOOK.audio) && !!hookEl; }
+  function isHookTrack(t) { return !!t && hookIdx >= 0 && NEW[hookIdx] === t; }
+  function hookPeaks() { return (HOOK && HOOK.peaks) || (hookIdx >= 0 ? NEW[hookIdx].peaks : null); }
+  function hookDuration() {
+    var d = hookEl && hookEl.duration;
+    if (d && isFinite(d) && d > 0) return d;
+    return (HOOK && HOOK.duration) || 0;
+  }
+  function hookRatio() {
+    var d = hookDuration();
+    return d ? Math.min(1, Math.max(0, ((hookEl && hookEl.currentTime) || 0) / d)) : 0;
+  }
+
+  function paintHookBar() {
+    var bar = $("heroHookBar"), fill = $("heroHookFill");
+    if (!bar || !fill) return;
+    bar.hidden = !(hasHook() && (hookSel || hookPlaying));
+    fill.style.width = Math.round(hookRatio() * 100) + "%";
+  }
+
+  /* состояние карточки анонса и кнопки hero — считаем от реального состояния элемента */
+  function paintHook() {
+    if (!hasHook()) return;
+    var t = NEW[hookIdx], rec = cards[hookIdx];
+    var live = hookPlaying && hookEl && !hookEl.paused;
+    if (rec && rec.art) {
+      rec.art.classList.toggle("is-active", hookSel || live);
+      rec.art.classList.toggle("is-playing", live);
+      if (rec.btn) {
+        rec.btn.setAttribute("aria-pressed", live ? "true" : "false");
+        rec.btn.setAttribute("aria-label", (live ? "Пауза: тизер " : "Послушать тизер: ") + t.title);
+      }
+    }
+    if (isHookTrack(featured) && heroPlay) {
+      heroPlay.classList.toggle("hookon", live);
+      heroPlay.setAttribute("aria-pressed", live ? "true" : "false");
+      var lab = heroPlay.querySelector(".label");
+      if (lab) lab.textContent = live ? "Пауза · тизер" : ("Тизер · припев — " + ((HOOK.durationText) || "0:20"));
+    }
+    paintHookBar();
+  }
+
+  function paintHookProgress() {
+    if (!hasHook()) return;
+    var rec = cards[hookIdx];
+    if (rec && rec.canvas) drawWave(rec.canvas, hookPeaks(), hookRatio(), true);
+    paintHookBar();
+  }
+
+  function hookDrawLoop() { hookRaf = requestAnimationFrame(hookDrawLoop); paintHookProgress(); }
+  function hookRafStart() { if (!hookRaf) hookRaf = requestAnimationFrame(hookDrawLoop); }
+  function hookRafStop() { if (hookRaf) { cancelAnimationFrame(hookRaf); hookRaf = 0; } }
+
+  function hookStop() {          /* глушим хук совсем — человек запустил обычный трек */
+    if (!hookEl) return;
+    try { hookEl.pause(); } catch (e) {}
+    try { if (hookEl.currentTime) hookEl.currentTime = 0; } catch (e) {}
+    hookPlaying = false; hookSel = false; hookRafStop();
+    paintHook();
+  }
+  function hookToggle() {
+    if (!hasHook() || !hookEl) return;
+    if (!hookEl.paused) { try { hookEl.pause(); } catch (e) {} return; }
+    if (!audio.paused) { try { audio.pause(); } catch (e) {} }   /* не звучим поверх трека */
+    if (hookDuration() && (hookEl.ended || hookEl.currentTime >= hookDuration() - 0.05)) {
+      try { hookEl.currentTime = 0; } catch (e) {}              /* после конца — с начала, но только по нажатию */
+    }
+    hookSel = true;
+    var p;
+    try { p = hookEl.play(); } catch (e) { p = null; }
+    if (p && p.catch) p.catch(function () { hookPlaying = false; hookSel = false; paintHook(); });
+  }
+
+  if (hookEl) {
+    hookEl.addEventListener("play", function () { hookPlaying = true; hookSel = true; paintHook(); hookRafStart(); });
+    hookEl.addEventListener("pause", function () { hookPlaying = false; hookRafStop(); paintHook(); });
+    hookEl.addEventListener("ended", function () { hookPlaying = false; hookSel = false; hookRafStop(); paintHook(); });   /* доиграл — тишина, без перезапуска */
+    hookEl.addEventListener("timeupdate", function () { if (hookEl.paused) paintHookProgress(); });
+    hookEl.addEventListener("error", function () { hookPlaying = false; hookSel = false; paintHook(); });
+  }
+
+  /* ==================== избранное — состояние (localStorage) ==================== */
+  var fav = [];   /* слаги в порядке добавления */
+  (function loadFav() {
+    try {
+      var raw = localStorage.getItem(LS_FAV);
+      if (raw) { var a = JSON.parse(raw); if (Array.isArray(a)) fav = a.filter(function (s) { return typeof s === "string"; }); }
+    } catch (e) { /* нет localStorage / битые данные — стартуем с пустой подборки */ }
+  })();
+  function favSave() { try { localStorage.setItem(LS_FAV, JSON.stringify(fav)); } catch (e) {} }
+  function trackIndex(slug) { for (var i = 0; i < NEW.length; i++) if (NEW[i].slug === slug) return i; return -1; }
+  function favIdx(slug) { return fav.indexOf(slug); }
+  function isFav(slug) { return favIdx(slug) >= 0; }
+  function favIndices() { return fav.map(trackIndex).filter(function (i) { return i >= 0; }); }
+  function favTracks() { return favIndices().map(function (i) { return NEW[i]; }); }
+  function durSec(t) {
+    var m = /^(\d+):(\d{2})$/.exec(String((t && t.durationText) || ""));
+    return m ? (+m[1]) * 60 + (+m[2]) : ((t && t.duration) || 0);
+  }
+  function favStats() {
+    var ts = favTracks(), sec = 0;
+    ts.forEach(function (t) { sec += durSec(t); });
+    return { n: ts.length, min: ts.length ? Math.max(1, Math.round(sec / 60)) : 0 };
+  }
+
+  /* ♥ — кнопка в правом верхнем углу карточки (цель 44×44), отдельная от .tc-hit */
+  function favBtnHTML(t) {
+    var on = isFav(t.slug);
+    return '<button class="fav-btn' + (on ? " on" : "") + '" type="button" data-fav="' + esc(t.slug) + '"' +
+      ' aria-pressed="' + (on ? "true" : "false") + '"' +
+      ' aria-label="' + (on ? "Убрать из подборки: " : "Добавить в подборку: ") + esc(t.title) + '"' +
+      ' title="' + (on ? "Убрать из подборки" : "Добавить в подборку") + '">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.9-4.7-9.9-9.6C.9 7.2 2.9 4.2 6.1 4.2c1.9 0 3.1 1 3.9 2 .8-1 2-2 3.9-2 3.2 0 5.2 3 4 6.7-2 4.9-9.9 9.6-9.9 9.6z"/></svg>' +
+    '</button>';
+  }
 
   /* ==================== static content ==================== */
   function minYear() { var y = Infinity; NEW.concat(ARCHIVE).forEach(function (t) { if (t && t.year < y) y = t.year; }); return isFinite(y) ? y : ""; }
@@ -192,6 +330,7 @@
         '<span class="tc-dur">' + esc(t.durationText) + '</span>' +
         '<span class="tc-play" aria-hidden="true"></span>' +
       '</div>' +
+      favBtnHTML(t) +
       '<button class="tc-hit" type="button" aria-label="Слушать: ' + esc(t.title) + '" aria-pressed="false"></button>';
   }
 
@@ -207,13 +346,44 @@
         '<span class="tc-count" aria-hidden="true"></span>' +
         '<span class="tc-lock" aria-hidden="true">🔒</span>' +
       '</div>' +
+      favBtnHTML(t) +
       '<button class="tc-hit" type="button" aria-disabled="true" ' +
         'aria-label="Анонс: ' + esc(t.title) + '. Премьера ' + esc(releaseLabel(t)) + '. Воспроизведение пока недоступно"></button>';
+  }
+
+  /* анонс премьеры, у которого есть хук: карточка выглядит и ведёт себя как обычная
+     (курсор, подъём, волна, эквалайзер, прогресс), но подпись честно помечает её тизером,
+     а не релизом; ♥ нет — в подборку анонс не добавляется */
+  function hookCardInner(t) {
+    var dur = (HOOK && HOOK.durationText) || "0:20";
+    var sub = (t.year ? t.year + " · " : "") + "тизер · припев · " + dur +
+              " · премьера " + releaseLabel(t);
+    return '<img class="cover" src="' + esc(t.cover) + '" alt="Обложка «' + esc(t.title) + '»" width="96" height="96" loading="lazy" decoding="async">' +
+      '<div class="tc-body">' +
+        '<h3 class="tc-title">' + esc(t.title) + '</h3>' +
+        featLine(t) +
+        '<p class="tc-sub">' + sub + '</p>' +
+      '</div>' +
+      '<canvas class="tc-wave" aria-hidden="true"></canvas>' +
+      '<div class="tc-right">' +
+        '<span class="tc-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' +
+        '<span class="tc-dur">' + esc(dur) + '</span>' +
+        '<span class="tc-play" aria-hidden="true"></span>' +
+      '</div>' +
+      '<button class="tc-hit" type="button" aria-label="Послушать тизер: ' + esc(t.title) + ' — 20 секунд припева"></button>';
   }
 
   function wireCard(rec) {
     rec.btn = rec.art.querySelector(".tc-hit");
     rec.canvas = rec.art.querySelector(".tc-wave");
+    /* ♥ гасит всплытие: клик по нему меняет подборку и НЕ запускает трек
+       (иначе всплыл бы до делегированного обработчика карточки) */
+    var fb = rec.art.querySelector(".fav-btn");
+    if (fb) fb.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFav(this.getAttribute("data-fav"));
+    });
     /* delegate on the card so a click anywhere (card or overlay button) plays */
     rec.art.addEventListener("click", function () { onCardClick(rec.i); });
   }
@@ -223,8 +393,15 @@
     NEW.forEach(function (t, i) {
       var art = mk("article", "track-card");
       art.setAttribute("data-i", i);
-      if (isDatedTeaser(t)) art.classList.add("is-teaser");
-      art.innerHTML = isDatedTeaser(t) ? teaserInner(t) : playableInner(t);
+      if (isHookTrack(t) && hasHook()) {
+        art.classList.add("is-hook");
+        art.innerHTML = hookCardInner(t);
+      } else if (isDatedTeaser(t)) {
+        art.classList.add("is-teaser");
+        art.innerHTML = teaserInner(t);
+      } else {
+        art.innerHTML = playableInner(t);
+      }
       box.appendChild(art);
       var rec = { art: art, i: i };
       cards.push(rec);
@@ -318,6 +495,10 @@
   /* cur = index of the SELECTED track in NEW, or -1 for the neutral state.
      A teaser (not playable) can never be the active track. */
   var cur = -1;
+  /* очередь плеера: по умолчанию — все играющие треки каталога; подборка/чужая
+     подборка подставляют свой список, чтобы prev/next и «дальше» шли по нему */
+  var altQueue = null;
+  function activeQueue() { return (altQueue && altQueue.length) ? altQueue : playableIdx; }
   (function () {
     var raw = null;
     try { raw = localStorage.getItem(LS_TRACK); } catch (e) {}
@@ -370,6 +551,7 @@
     var playing = !audio.paused && !audio.error;
     cards.forEach(function (c) {
       var t = NEW[c.i];
+      if (isHookTrack(t)) return;               /* анонс-хук живёт своим состоянием (paintHook) */
       var active = (c.i === cur) && isPlayable(t);
       c.art.classList.toggle("is-active", active);
       c.art.classList.toggle("is-playing", active && playing);
@@ -377,7 +559,8 @@
       if (isPlayable(t)) c.btn.setAttribute("aria-label", (active && playing ? "Пауза: " : "Слушать: ") + t.title);
     });
     activeCanvas = (cur >= 0 && cards[cur]) ? cards[cur].canvas : null;
-    heroPlay.setAttribute("aria-pressed", (!audio.paused && isPlayable(NEW[0]) && cur === 0) ? "true" : "false");
+    paintFavCur();
+    heroPlay.setAttribute("aria-pressed", (hookPlaying || (!audio.paused && isPlayable(NEW[0]) && cur === 0)) ? "true" : "false");
   }
 
   function setButtonState(state) {
@@ -420,6 +603,7 @@
     syncMediaSession(t);
     updateCards();
     refreshWave();
+    refreshShare();
   }
 
   function loadTrack(i, autoplay) {
@@ -448,11 +632,12 @@
 
   /* queue walks ONLY playable tracks (teaser excluded) */
   function step(dir) {
-    if (!playableIdx.length) return;
-    var pos = playableIdx.indexOf(cur);
-    if (pos < 0) { loadTrack(dir > 0 ? playableIdx[0] : playableIdx[playableIdx.length - 1], true); return; }
-    var np = (pos + dir + playableIdx.length) % playableIdx.length;
-    loadTrack(playableIdx[np], true);
+    var q = activeQueue();
+    if (!q.length) return;
+    var pos = q.indexOf(cur);
+    if (pos < 0) { loadTrack(dir > 0 ? q[0] : q[q.length - 1], true); return; }
+    var np = (pos + dir + q.length) % q.length;
+    loadTrack(q[np], true);
   }
   function nextTrack() { step(1); }
   function prevTrack() { step(-1); }
@@ -467,9 +652,358 @@
 
   function onCardClick(i) {
     var t = NEW[i];
-    if (!isPlayable(t)) { nudge(i); return; }   /* teaser: no audio, just a reaction */
+    if (isHookTrack(t) && hasHook()) { hookToggle(); return; }   /* анонс: играем/пауза хука */
+    if (!isPlayable(t)) { nudge(i); return; }   /* teaser без хука: no audio, just a reaction */
+    altQueue = null;                            /* клик по каталогу — обычная очередь */
     if (i === cur) { if (audio.paused) play(); else pause(); }
     else loadTrack(i, true);
+  }
+
+  /* ==================== избранное — секция «Моя подборка» ==================== */
+  var favList = $("favList"), favEmpty = $("favEmpty"), favN = $("favN"), favL = $("favL"), favListenBtn = $("favListen");
+
+  function updateFavBtn(btn) {
+    var slug = btn.getAttribute("data-fav");
+    var on = isFav(slug), i = trackIndex(slug), t = i >= 0 ? NEW[i] : null;
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-label", (on ? "Убрать из подборки: " : "Добавить в подборку: ") + (t ? t.title : ""));
+    btn.title = on ? "Убрать из подборки" : "Добавить в подборку";
+  }
+  function paintHearts() {
+    var btns = document.querySelectorAll("#newList .fav-btn");
+    for (var k = 0; k < btns.length; k++) updateFavBtn(btns[k]);
+  }
+
+  function rowSub(t) {
+    return [t.year || null, t.album || null, (t.feat ? "при уч. " + t.feat : null), t.durationText || null]
+      .filter(Boolean).join(" · ");
+  }
+
+  function renderFav() {
+    if (!favList) return;
+    var items = favTracks(), st = favStats();
+    if (favN) favN.textContent = String(st.n);
+    if (favL) favL.textContent = st.n + " " + plural(st.n, "трек", "трека", "треков") + " · " + st.min + " мин";
+    if (favListenBtn) favListenBtn.disabled = st.n === 0;
+    favList.innerHTML = items.map(function (t) {
+      var i = trackIndex(t.slug), playable = i >= 0 && isPlayable(NEW[i]);
+      return '<li class="fav-row' + (i === cur ? " is-cur" : "") + '" data-slug="' + esc(t.slug) + '">' +
+        '<span class="fr-cover" style="background-image:url(\'' + t.cover + '\')"></span>' +
+        '<span class="fr-body"><span class="fr-title">' + esc(t.title) + '</span>' +
+          '<span class="fr-sub">' + esc(rowSub(t)) + '</span></span>' +
+        (playable
+          ? '<button class="fr-play" type="button" data-play="' + esc(t.slug) + '" aria-label="Слушать: ' + esc(t.title) + '">' +
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M3 2l9 5-9 5z"/></svg></button>'
+          : '') +
+        '<button class="fr-x" type="button" data-remove="' + esc(t.slug) + '" aria-label="Убрать из подборки: ' + esc(t.title) + '" title="Убрать">✕</button>' +
+      '</li>';
+    }).join("");
+    favEmpty.hidden = st.n !== 0;
+    favList.hidden = st.n === 0;
+  }
+
+  /* подсветка строки, которая сейчас играет — без перерисовки всего списка */
+  function paintFavCur() {
+    if (!favList) return;
+    var rows = favList.querySelectorAll(".fav-row");
+    for (var k = 0; k < rows.length; k++) {
+      rows[k].classList.toggle("is-cur", trackIndex(rows[k].getAttribute("data-slug")) === cur);
+    }
+  }
+
+  function toggleFav(slug) {
+    var i = favIdx(slug);
+    if (i >= 0) fav.splice(i, 1); else fav.push(slug);
+    favSave();
+    paintHearts();
+    renderFav();
+    renderSharePl();
+  }
+
+  function playFavSlug(slug) {
+    var i = trackIndex(slug);
+    if (i < 0 || !isPlayable(NEW[i])) return;
+    altQueue = favIndices().filter(function (k) { return isPlayable(NEW[k]); });
+    loadTrack(i, true);
+  }
+
+  if (favList) favList.addEventListener("click", function (e) {
+    var rm = e.target.closest(".fr-x");
+    if (rm) { e.preventDefault(); toggleFav(rm.getAttribute("data-remove")); return; }
+    var pl = e.target.closest(".fr-play");
+    if (pl) { e.preventDefault(); playFavSlug(pl.getAttribute("data-play")); }
+  });
+  if (favListenBtn) favListenBtn.addEventListener("click", function () {
+    var q = favIndices().filter(function (k) { return isPlayable(NEW[k]); });   /* порядок добавления */
+    if (!q.length) return;
+    altQueue = q;
+    loadTrack(q[0], true);
+  });
+
+  /* ==================== шеринг из плеера ==================== */
+  var shareBtn = $("shareBtn"), shareSheet = $("shareSheet"), psheet = $("psheet"), shareScrim = $("shareScrim");
+  var shareTabs = shareSheet ? shareSheet.querySelectorAll(".sh-tabs button[data-tab]") : [];
+  var sharePanes = shareSheet ? shareSheet.querySelectorAll(".pane[data-pane]") : [];
+  var shareCover = $("shareCover"), shareTitle = $("shareTitle"), shareSub = $("shareSub");
+  var shareSongLink = $("shareSongLink"), shareSongCopy = $("shareSongCopy"), shareSongNote = $("shareSongNote");
+  var shareStack = $("shareStack"), sharePlSub = $("sharePlSub"), sharePlFull = $("sharePlFull");
+  var sharePlEmpty = $("sharePlEmpty"), sharePlLink = $("sharePlLink"), sharePlList = $("sharePlList");
+
+  function siteOrigin() { return "https://" + SITE; }
+  function songUrl(t) { return (t && t.slug) ? siteOrigin() + "/t/" + t.slug + "/" : ""; }
+  function playlistSlugs() { return fav.filter(function (s) { return trackIndex(s) >= 0; }); }
+  function playlistUrl() {
+    var s = playlistSlugs();
+    return s.length ? siteOrigin() + "/#p=" + s.join(",") : "";
+  }
+
+  /* копирование: Clipboard API, при отказе (file://, старый браузер) — выделение + execCommand.
+     Никогда не бросает ошибку в консоль. */
+  function copyText(text, btn) {
+    function done() {
+      if (!btn) return;
+      if (!btn.getAttribute("data-orig")) btn.setAttribute("data-orig", btn.textContent.trim());
+      btn.classList.add("done");
+      btn.textContent = "Скопировано";
+      clearTimeout(btn._t);
+      btn._t = setTimeout(function () {
+        btn.classList.remove("done");
+        btn.textContent = btn.getAttribute("data-orig");
+      }, 1900);
+    }
+    function fallback() {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text; ta.setAttribute("readonly", "");
+        ta.style.position = "fixed"; ta.style.top = "-1000px"; ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select(); try { ta.setSelectionRange(0, ta.value.length); } catch (e1) {}
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (e2) { /* молча: копирование не критично */ }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallback(); done(); });
+      } else { fallback(); done(); }
+    } catch (e3) { fallback(); done(); }
+  }
+
+  function renderShareSong() {
+    var t = curTrack();
+    if (!t) {
+      if (shareCover) shareCover.setAttribute("src", "");
+      if (shareTitle) shareTitle.textContent = "Трек не выбран";
+      if (shareSub) shareSub.textContent = "Сначала включи любую песню";
+      if (shareSongLink) shareSongLink.value = "";
+      if (shareSongCopy) shareSongCopy.disabled = true;
+      if (shareSongNote) { shareSongNote.hidden = false; shareSongNote.textContent = "Пока ничего не выбрано — включи трек в каталоге, и здесь появится его ссылка."; }
+      return;
+    }
+    var sub = [ARTIST, t.year || null, t.album || null, t.durationText || null].filter(Boolean).join(" · ");
+    if (shareCover) shareCover.setAttribute("src", t.cover || "");
+    if (shareTitle) shareTitle.textContent = t.title + (t.feat ? " (feat. " + t.feat + ")" : "");
+    if (shareSub) shareSub.textContent = sub;
+    if (shareSongLink) shareSongLink.value = songUrl(t);
+    if (shareSongCopy) shareSongCopy.disabled = false;
+    if (shareSongNote) shareSongNote.hidden = true;
+  }
+
+  function renderSharePl() {
+    if (!sharePlSub) return;
+    var items = favTracks(), st = favStats();
+    if (shareStack) shareStack.innerHTML = items.slice(0, 4).map(function (t) { return '<img src="' + esc(t.cover) + '" alt="">'; }).join("");
+    sharePlSub.textContent = st.n + " " + plural(st.n, "трек", "трека", "треков") + " · " + st.min + " мин · хранится в браузере";
+    var full = st.n > 0 && playlistSlugs().length > 0;
+    if (sharePlFull) sharePlFull.hidden = !full;
+    if (sharePlEmpty) sharePlEmpty.hidden = full;
+    if (full && sharePlLink) {
+      sharePlLink.value = playlistUrl();
+      if (sharePlList) sharePlList.innerHTML = items.map(function (t) {
+        return '<li><img src="' + esc(t.cover) + '" alt=""><span class="n">' + esc(t.title) + '</span>' +
+          '<span class="d">' + esc(t.durationText || "") + '</span></li>';
+      }).join("");
+    }
+  }
+  function refreshShare() { renderShareSong(); renderSharePl(); }
+
+  function openSheetEl(el) {
+    if (!el) return;
+    el.hidden = false;
+    void el.offsetWidth;                 /* flush, чтобы анимация выезда сыграла */
+    el.classList.add("on");
+    if (shareScrim) shareScrim.classList.add("on");
+  }
+  function closeSheetEl(el) {
+    if (!el) return;
+    el.classList.remove("on");
+    if (shareScrim) shareScrim.classList.remove("on");
+    setTimeout(function () { el.hidden = true; }, 300);
+  }
+  function setShareTab(name) {
+    for (var k = 0; k < shareTabs.length; k++) shareTabs[k].classList.toggle("on", shareTabs[k].getAttribute("data-tab") === name);
+    for (var j = 0; j < sharePanes.length; j++) sharePanes[j].hidden = sharePanes[j].getAttribute("data-pane") !== name;
+  }
+  function openShare() {
+    if (psheet && psheet.classList.contains("on")) closeSheetEl(psheet);
+    setShareTab("song");
+    renderShareSong(); renderSharePl();
+    openSheetEl(shareSheet);
+    if (shareBtn) { shareBtn.classList.add("on"); shareBtn.setAttribute("aria-expanded", "true"); }
+  }
+  function closeShare() {
+    closeSheetEl(shareSheet);
+    if (shareBtn) { shareBtn.classList.remove("on"); shareBtn.setAttribute("aria-expanded", "false"); }
+  }
+  function closeForeign() { closeSheetEl(psheet); }
+
+  if (shareBtn) shareBtn.addEventListener("click", function () {
+    if (shareSheet && shareSheet.classList.contains("on")) closeShare(); else openShare();
+  });
+  for (var tk = 0; tk < shareTabs.length; tk++) {
+    shareTabs[tk].addEventListener("click", function () { setShareTab(this.getAttribute("data-tab")); });
+  }
+  if (shareScrim) shareScrim.addEventListener("click", function () {
+    closeShare();
+    if (psheet && psheet.classList.contains("on")) closeForeign();
+  });
+  if (shareSheet) shareSheet.addEventListener("click", function (e) {
+    if (e.target.closest("[data-close]")) { closeShare(); return; }
+    var c = e.target.closest("[data-copy]");
+    if (c) {
+      var val = c.getAttribute("data-copy") === "pl" ? (sharePlLink ? sharePlLink.value : "") : (shareSongLink ? shareSongLink.value : "");
+      if (val) copyText(val, c);
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (shareSheet && shareSheet.classList.contains("on")) closeShare();
+    if (psheet && psheet.classList.contains("on")) closeForeign();
+  });
+
+  /* обычные share-URL платформ (Telegram / ВКонтакте) */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-shareto]");
+    if (!b) return;
+    e.preventDefault();
+    var slot = b.getAttribute("data-slot");
+    var url = slot === "pl" ? (sharePlLink ? sharePlLink.value : "") : (shareSongLink ? shareSongLink.value : "");
+    if (!url) return;
+    var t = curTrack();
+    var text = slot === "pl" ? ("Моя подборка — " + ARTIST)
+                             : ((t ? t.title : "Breshia") + " — " + ARTIST);
+    var enc = encodeURIComponent(url), tx = encodeURIComponent(text);
+    var map = { tg: "https://t.me/share/url?url=" + enc + "&text=" + tx, vk: "https://vk.com/share.php?url=" + enc };
+    try { window.open(map[b.getAttribute("data-shareto")] || url, "_blank", "noopener"); } catch (e2) {}
+  });
+
+  /* на телефоне — системный лист «Поделиться», если браузер его умеет */
+  var canNativeShare = !!(navigator.share);
+  (function () {
+    var ns = document.querySelectorAll(".native[data-native]");
+    for (var k = 0; k < ns.length; k++) ns[k].hidden = !canNativeShare;
+  })();
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-native]");
+    if (!b) return;
+    e.preventDefault();
+    var slot = b.getAttribute("data-native");
+    var url = slot === "pl" ? (sharePlLink ? sharePlLink.value : "") : (shareSongLink ? shareSongLink.value : "");
+    if (!url) return;
+    var t = curTrack();
+    var payload = slot === "pl"
+      ? { title: "Подборка — " + ARTIST, text: "Моя подборка — " + ARTIST, url: url }
+      : { title: (t ? t.title : ARTIST) + " — " + ARTIST, text: t ? t.title : "", url: url };
+    try { var p = navigator.share(payload); if (p && p.catch) p.catch(function () {}); } catch (e2) {}
+  });
+
+  /* ==================== шторка «чужая подборка» (#p=) ==================== */
+  var psBody = $("psBody");
+  var foreignSlugs = [];
+
+  function foreignTracks() { return foreignSlugs.map(function (s) { return NEW[trackIndex(s)]; }); }
+
+  function renderForeign() {
+    if (!psBody) return;
+    var ts = foreignTracks(), sec = 0;
+    ts.forEach(function (t) { sec += durSec(t); });
+    var min = Math.max(1, Math.round(sec / 60));
+    var have = ts.filter(function (t) { return isFav(t.slug); }).length;
+    var stack = ts.slice(0, 4).map(function (t) { return '<img src="' + esc(t.cover) + '" alt="">'; }).join("");
+    var rows = ts.map(function (t) {
+      return '<li><img src="' + esc(t.cover) + '" alt="">' +
+        '<span class="n">' + esc(t.title) + '</span>' +
+        (isFav(t.slug) ? '<span class="have">уже у тебя</span>' : "") +
+        '<span class="d">' + esc(t.durationText || "") + '</span></li>';
+    }).join("");
+    var allHave = have === ts.length;
+    psBody.innerHTML =
+      '<div class="item"><span class="stack">' + stack + '</span>' +
+        '<span class="tt"><b>Подборка из ' + ts.length + ' ' + plural(ts.length, "трека", "треков", "треков") + '</b>' +
+        '<span>' + min + ' мин · прислал друг · ♥ ' + have + ' из ' + ts.length + ' уже у тебя</span></span></div>' +
+      '<ul class="pl-list full">' + rows + '</ul>' +
+      '<div class="acts">' +
+        '<button class="pill solid" id="psPlayAll" type="button">' +
+          '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg> Слушать всё</button>' +
+        '<button class="pill" id="psAddAll" type="button"' + (allHave ? " disabled" : "") + '>' +
+          (allHave ? "Все уже в избранном" : "Добавить себе") + '</button>' +
+      '</div>' +
+      '<p class="note" id="psNote">В избранное уедет ' + (ts.length - have) + ' из ' + ts.length +
+        ' — уже добавленные не задвоятся, дубликатов не будет.</p>';
+  }
+
+  function openForeign(csv) {
+    var slugs = String(csv || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    var seen = {}, list = [];
+    slugs.forEach(function (s) { if (trackIndex(s) >= 0 && !seen[s]) { seen[s] = 1; list.push(s); } });
+    if (!list.length) return;                 /* несуществующие слаги игнорируем */
+    foreignSlugs = list;
+    renderForeign();
+    openSheetEl(psheet);
+  }
+
+  if (psBody) psBody.addEventListener("click", function (e) {
+    if (e.target.closest("#psPlayAll")) {
+      var q = foreignSlugs.map(trackIndex).filter(function (i) { return i >= 0 && isPlayable(NEW[i]); });
+      if (q.length) { altQueue = q; loadTrack(q[0], true); closeForeign(); }
+      return;
+    }
+    if (e.target.closest("#psAddAll")) {
+      var added = 0;
+      foreignSlugs.forEach(function (s) { if (!isFav(s) && trackIndex(s) >= 0) { fav.push(s); added++; } });
+      if (added) { favSave(); paintHearts(); renderFav(); refreshShare(); }
+      renderForeign();
+      var note = $("psNote");
+      if (note) note.textContent = added
+        ? ("+" + added + " " + plural(added, "трек", "трека", "треков") + " в избранном — совпавшие не задвоились.")
+        : "Все треки уже были в избранном — ничего не изменилось.";
+    }
+  });
+
+  /* ==================== ссылки ?t=<slug> и #p=<slugs> ==================== */
+  function markTarget(i) {
+    var rec = cards[i];
+    if (!rec) return;
+    for (var k = 0; k < cards.length; k++) cards[k].art.classList.remove("is-target");
+    rec.art.classList.add("is-target");
+    try { rec.art.scrollIntoView({ block: "center" }); }
+    catch (e) { try { rec.art.scrollIntoView(); } catch (e2) {} }
+  }
+
+  function applyDeepLinks() {
+    var qs = String(location.search || "").replace(/^\?/, "");
+    var mt = /(?:^|&)t=([^&]+)/.exec(qs);
+    if (mt) {
+      var slug = decodeURIComponent(mt[1]);
+      var i = trackIndex(slug);
+      if (i >= 0) {
+        if (isPlayable(NEW[i])) { altQueue = null; loadTrack(i, false); }   /* ставим в плеер, БЕЗ автозапуска */
+        markTarget(i);
+      }
+    }
+    var hp = /(?:^|#|&)p=([^&]*)/.exec(String(location.hash || ""));
+    if (hp) openForeign(decodeURIComponent(hp[1]));
   }
 
   /* ==================== teaser UI (live countdown) ==================== */
@@ -503,6 +1037,18 @@
       if (label) label.textContent = "Слушать";
     };
     var d = releaseLabel(t);
+    /* анонс премьеры с хуком: кнопку НЕ блокируем — по нажатию играет 20-секундный тизер */
+    if (isHookTrack(t) && hasHook()) {
+      var leftH = (m == null) ? null : (m - Date.now());
+      heroCd.hidden = !(leftH != null && leftH > 0);
+      if (leftH != null && leftH > 0) buildHeroCells(leftH);
+      heroPlay.disabled = false; heroPlay.classList.remove("is-soon");
+      heroPlay.setAttribute("aria-disabled", "false");
+      heroPlay.setAttribute("aria-label", "Послушать тизер: " + t.title + " — 20 секунд припева");
+      if (!hookPlaying && label) label.textContent = "Тизер · припев — " + ((HOOK.durationText) || "0:20");
+      paintHookBar();
+      return;
+    }
     if (m == null || isPlayable(t)) { open(); return; }
     var left = m - Date.now();
     if (left > 0) {
@@ -526,6 +1072,7 @@
   function renderCardTeasers() {
     cards.forEach(function (rec) {
       var t = NEW[rec.i];
+      if (isHookTrack(t)) return;                                /* анонс-хук: интерфейс ведёт hook-модуль */
       if (releaseMs(t) == null) return;                          /* no date → normal track */
       var left = releaseMs(t) - Date.now();
       var badge = rec.art.querySelector(".tc-badge");
@@ -560,7 +1107,7 @@
   function loop() { rafId = requestAnimationFrame(loop); updateTimes(); refreshWave(); }
 
   /* audio events */
-  audio.addEventListener("play", function () { setButtonState("playing"); updateCards(); startRaf(); });
+  audio.addEventListener("play", function () { hookStop(); setButtonState("playing"); updateCards(); startRaf(); });
   audio.addEventListener("pause", function () { setButtonState("paused"); updateCards(); stopRaf(); updateTimes(); refreshWave(); });
   audio.addEventListener("playing", function () { setButtonState("playing"); updateCards(); });
   audio.addEventListener("waiting", function () { if (!audio.paused) setButtonState("loading"); });
@@ -640,7 +1187,9 @@
   prevBtn.addEventListener("click", prevTrack);
   nextBtn.addEventListener("click", nextTrack);
   heroPlay.addEventListener("click", function () {
-    if (!isPlayable(featured)) return;    /* locked teaser: do nothing */
+    if (isHookTrack(featured) && hasHook()) { hookToggle(); return; }   /* анонс: тизер по нажатию */
+    if (!isPlayable(featured)) return;    /* locked teaser без хука: do nothing */
+    altQueue = null;
     if (cur !== 0) loadTrack(0, true); else toggle();
   });
 
@@ -713,6 +1262,7 @@
 
   /* redraw on resize / after layout settles */
   function redrawAll() {
+    if (hasHook()) paintHookProgress();          /* волна анонса — из настоящих пиков хука */
     if (cur < 0) { idleWave(); return; }
     refreshWave();
     cards.forEach(function (c) {
@@ -728,8 +1278,14 @@
 
   /* init: restore selected track (src only, no autoplay); teaser → neutral */
   updateTeaserUI();
+  if (hasHook()) { paintHook(); paintHookProgress(); }   /* анонс-хук: состояние и волна из пиков */
   setInterval(updateTeaserUI, 1000);
   if (cur >= 0) loadTrack(cur, false);
   else { renderMeta(); idleWave(); }
   updateTimes();
+  paintHearts();        /* ♥ на карточках — из сохранённой подборки */
+  renderFav();          /* секция «Моя подборка» */
+  renderShareSong();
+  renderSharePl();
+  applyDeepLinks();     /* ?t=<slug> и #p=<slugs> */
 })();

@@ -19,6 +19,8 @@
 <body>
 
 <audio id="audio" preload="metadata"></audio>
+<!-- входной тизер: отдельный элемент, основной плеер (#audio) не трогает -->
+<audio id="hookAudio" preload="auto"></audio>
 
 <!-- ==================== HERO ==================== -->
 <header class="hero" id="hero">
@@ -41,6 +43,10 @@
         </button>
         <a class="ghost" href="#new">Новое<span class="arw" aria-hidden="true">↓</span></a>
       </div>
+      <!-- прогресс тизера-хука: видно, сколько из 20 секунд припева отыграно -->
+      <div class="hero-hookbar" id="heroHookBar" hidden>
+        <span class="hookbar-fill" id="heroHookFill"></span>
+      </div>
     </div>
 
     <figure class="hero-cover">
@@ -62,6 +68,28 @@
       <p>Два трека 2026 года уже вышли — нажмите, чтобы слушать. Премьера «Девочки с лопатой» — 31 октября.</p>
     </div>
     <div class="tracks" id="newList"></div>
+  </section>
+
+  <!-- ==================== Избранное (личная подборка) ==================== -->
+  <section id="fav">
+    <div class="sec-head">
+      <span class="n">02 / Избранное</span>
+      <h2>Моя подборка</h2>
+      <p>Личный список песен — живёт в вашем браузере. Добавляйте ♥ на карточках выше, убирайте крестиком здесь.</p>
+    </div>
+    <div class="fav-panel">
+      <div class="fav-top">
+        <div class="fav-stat"><b id="favN">0</b><span id="favL">треков · 0 мин</span></div>
+        <button class="btn-listen" id="favListen" type="button">
+          <span class="tri" aria-hidden="true"></span>Слушать подборку
+        </button>
+      </div>
+      <ul class="fav-list" id="favList"></ul>
+      <div class="fav-empty" id="favEmpty" hidden>
+        <span class="fe-heart" aria-hidden="true">♥</span>
+        <p>Пока пусто — отметь <b>♥</b> на любой песне выше, и она появится здесь.</p>
+      </div>
+    </div>
   </section>
 
   <!-- ==================== 02 / Текст песни ==================== -->
@@ -135,6 +163,10 @@
       <button class="btn" id="next" type="button" aria-label="Следующий трек">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10 3h2v10h-2zM3 3l7 5-7 5z"/></svg>
       </button>
+      <span class="ctrls-divider" aria-hidden="true"></span>
+      <button class="btn share" id="shareBtn" type="button" aria-label="Поделиться" aria-haspopup="dialog" aria-expanded="false">
+        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.6v9.4"/><path d="M6.6 5.9 10 2.5l3.4 3.4"/><path d="M6 9.2H4.2v8.3h11.6V9.2H14"/></svg>
+      </button>
     </div>
 
     <div class="side">
@@ -148,6 +180,78 @@
       </span>
     </div>
   </div>
+</div>
+
+<!-- ==================== ШЕРИНГ: затемнение + шторка ==================== -->
+<div class="sh-scrim" id="shareScrim"></div>
+
+<div class="sheet" id="shareSheet" role="dialog" aria-modal="true" aria-label="Поделиться" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="sh-head">
+    <div class="sh-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="song" class="on">Песня</button>
+      <button type="button" role="tab" data-tab="pl">Подборка</button>
+    </div>
+    <button class="x" type="button" data-close aria-label="Закрыть">✕</button>
+  </div>
+  <div class="sh-body">
+
+    <div class="pane" data-pane="song">
+      <p class="sh-ttl">Сейчас играет</p>
+      <div class="item">
+        <img class="c" id="shareCover" src="" alt="">
+        <span class="tt"><b id="shareTitle">Трек не выбран</b><span id="shareSub">Breshia</span></span>
+      </div>
+      <label class="lab" for="shareSongLink">Ссылка на песню</label>
+      <div class="field">
+        <input id="shareSongLink" readonly value="" aria-label="Ссылка на песню">
+        <button class="copy" id="shareSongCopy" data-copy="song" type="button" disabled>Скопировать</button>
+      </div>
+      <div class="targets">
+        <button class="tg-btn" type="button" data-shareto="tg" data-slot="song"><i aria-hidden="true">tg</i>Telegram</button>
+        <button class="tg-btn" type="button" data-shareto="vk" data-slot="song"><i aria-hidden="true">vk</i>ВКонтакте</button>
+        <button class="tg-btn native" type="button" data-native="song" hidden><i aria-hidden="true">↗</i>Поделиться…</button>
+      </div>
+      <p class="note" id="shareSongNote" hidden></p>
+    </div>
+
+    <div class="pane" data-pane="pl" hidden>
+      <p class="sh-ttl">Моя подборка · избранное ♥</p>
+      <div class="item">
+        <span class="stack" id="shareStack"></span>
+        <span class="tt"><b>Моя подборка</b><span id="sharePlSub">0 треков · 0 мин · хранится в вашем браузере</span></span>
+      </div>
+      <div id="sharePlFull">
+        <label class="lab" for="sharePlLink">Ссылка на подборку</label>
+        <div class="field">
+          <input id="sharePlLink" readonly value="" aria-label="Ссылка на подборку">
+          <button class="copy" id="sharePlCopy" data-copy="pl" type="button">Скопировать</button>
+        </div>
+        <div class="targets">
+          <button class="tg-btn" type="button" data-shareto="tg" data-slot="pl"><i aria-hidden="true">tg</i>Telegram</button>
+          <button class="tg-btn" type="button" data-shareto="vk" data-slot="pl"><i aria-hidden="true">vk</i>ВКонтакте</button>
+          <button class="tg-btn native" type="button" data-native="pl" hidden><i aria-hidden="true">↗</i>Поделиться…</button>
+        </div>
+        <p class="note">Ссылка <code>#p=…</code> открывает у получателя шторку «Подборка из N треков» с кнопками «Слушать всё» и «Добавить себе».</p>
+        <ul class="pl-list" id="sharePlList"></ul>
+      </div>
+      <div class="empty" id="sharePlEmpty" hidden>
+        <span class="heart" aria-hidden="true">♥</span>
+        <p>Подборка пока пуста — добавь <b>♥</b> на песнях, и они соберутся здесь.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== Шторка «чужая подборка» (#p=) ==================== -->
+<div class="sheet" id="psheet" role="dialog" aria-modal="true" aria-label="Подборка по ссылке" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="sh-head">
+    <div class="sh-tabs"><button type="button" class="on">Подборка по ссылке</button></div>
+    <button class="x" type="button" data-close aria-label="Закрыть">✕</button>
+  </div>
+  <div class="sh-body" id="psBody"></div>
 </div>
 
 <script src="assets/data.js"></script>
