@@ -385,11 +385,13 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
 .track-card{padding-right:66px}
 .fav-btn{position:absolute;top:8px;right:8px;z-index:6;width:44px;height:44px;min-width:44px;min-height:44px;
   display:grid;place-items:center;border-radius:50%;cursor:pointer;padding:0;
-  background:rgba(11,11,13,.62);border:1px solid var(--line);color:var(--muted);
+  background:transparent;border:1px solid var(--line-2);color:var(--muted);
   transition:color .2s,border-color .2s,background .2s,transform .18s}
-.fav-btn:hover{color:var(--accent);border-color:var(--accent-2);transform:scale(1.06)}
+.fav-btn:hover{background:rgba(200,241,58,.10);color:var(--accent);border-color:var(--accent-2);transform:scale(1.06)}
 .fav-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.fav-btn svg{display:block;width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round}
+/* viewBox у svg = ink-бокс контура (2 3 20 18.35): контур симметричен относительно x=12, поэтому
+   сердце стоит строго по центру круга (в поле 24×24 оно смещено влево и выглядит сдвинутым) */
+.fav-btn svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 .fav-btn.on{color:var(--accent);border-color:rgba(200,241,58,.5);background:rgba(200,241,58,.12)}
 .fav-btn.on svg{fill:var(--accent);stroke:var(--accent)}
 

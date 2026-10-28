@@ -202,7 +202,7 @@
       ' aria-pressed="' + (on ? "true" : "false") + '"' +
       ' aria-label="' + (on ? "Убрать из подборки: " : "Добавить в подборку: ") + esc(t.title) + '"' +
       ' title="' + (on ? "Убрать из подборки" : "Добавить в подборку") + '">' +
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.9-4.7-9.9-9.6C.9 7.2 2.9 4.2 6.1 4.2c1.9 0 3.1 1 3.9 2 .8-1 2-2 3.9-2 3.2 0 5.2 3 4 6.7-2 4.9-9.9 9.6-9.9 9.6z"/></svg>' +
+      '<svg viewBox="2 3 20 18.35" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
     '</button>';
   }
 
@@ -498,7 +498,13 @@
   /* очередь плеера: по умолчанию — все играющие треки каталога; подборка/чужая
      подборка подставляют свой список, чтобы prev/next и «дальше» шли по нему */
   var altQueue = null;
-  function activeQueue() { return (altQueue && altQueue.length) ? altQueue : playableIdx; }
+  var queueMode = null;   /* "fav" — очередь подборки: ПЕРЕСОБИРАЕТСЯ перед каждым шагом, иначе
+                             треки, добавленные в подборку во время прослушивания, в next/prev не попадают */
+  function favQueue() { return favIndices().filter(function (k) { return isPlayable(NEW[k]); }); }
+  function activeQueue() {
+    if (queueMode === "fav") altQueue = favQueue();
+    return (altQueue && altQueue.length) ? altQueue : playableIdx;
+  }
   (function () {
     var raw = null;
     try { raw = localStorage.getItem(LS_TRACK); } catch (e) {}
@@ -655,6 +661,7 @@
     if (isHookTrack(t) && hasHook()) { hookToggle(); return; }   /* анонс: играем/пауза хука */
     if (!isPlayable(t)) { nudge(i); return; }   /* teaser без хука: no audio, just a reaction */
     altQueue = null;                            /* клик по каталогу — обычная очередь */
+    queueMode = null;
     if (i === cur) { if (audio.paused) play(); else pause(); }
     else loadTrack(i, true);
   }
@@ -724,7 +731,8 @@
   function playFavSlug(slug) {
     var i = trackIndex(slug);
     if (i < 0 || !isPlayable(NEW[i])) return;
-    altQueue = favIndices().filter(function (k) { return isPlayable(NEW[k]); });
+    queueMode = "fav";
+    altQueue = favQueue();
     loadTrack(i, true);
   }
 
@@ -735,8 +743,9 @@
     if (pl) { e.preventDefault(); playFavSlug(pl.getAttribute("data-play")); }
   });
   if (favListenBtn) favListenBtn.addEventListener("click", function () {
-    var q = favIndices().filter(function (k) { return isPlayable(NEW[k]); });   /* порядок добавления */
+    var q = favQueue();                                                         /* порядок добавления */
     if (!q.length) return;
+    queueMode = "fav";
     altQueue = q;
     loadTrack(q[0], true);
   });
@@ -966,7 +975,7 @@
   if (psBody) psBody.addEventListener("click", function (e) {
     if (e.target.closest("#psPlayAll")) {
       var q = foreignSlugs.map(trackIndex).filter(function (i) { return i >= 0 && isPlayable(NEW[i]); });
-      if (q.length) { altQueue = q; loadTrack(q[0], true); closeForeign(); }
+      if (q.length) { queueMode = "foreign"; altQueue = q; loadTrack(q[0], true); closeForeign(); }
       return;
     }
     if (e.target.closest("#psAddAll")) {
@@ -998,7 +1007,7 @@
       var slug = decodeURIComponent(mt[1]);
       var i = trackIndex(slug);
       if (i >= 0) {
-        if (isPlayable(NEW[i])) { altQueue = null; loadTrack(i, false); }   /* ставим в плеер, БЕЗ автозапуска */
+        if (isPlayable(NEW[i])) { altQueue = null; queueMode = null; loadTrack(i, false); }   /* ставим в плеер, БЕЗ автозапуска */
         markTarget(i);
       }
     }
@@ -1189,7 +1198,8 @@
   heroPlay.addEventListener("click", function () {
     if (isHookTrack(featured) && hasHook()) { hookToggle(); return; }   /* анонс: тизер по нажатию */
     if (!isPlayable(featured)) return;    /* locked teaser без хука: do nothing */
-    altQueue = null;
+    altQueue = null;      /* герой — обычная очередь */
+    queueMode = null;
     if (cur !== 0) loadTrack(0, true); else toggle();
   });
 
