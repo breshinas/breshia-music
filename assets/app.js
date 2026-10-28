@@ -695,7 +695,8 @@
     if (favListenBtn) favListenBtn.disabled = st.n === 0;
     favList.innerHTML = items.map(function (t) {
       var i = trackIndex(t.slug), playable = i >= 0 && isPlayable(NEW[i]);
-      return '<li class="fav-row' + (i === cur ? " is-cur" : "") + '" data-slug="' + esc(t.slug) + '">' +
+      return '<li class="fav-row' + (i === cur ? " is-cur" : "") + '" data-slug="' + esc(t.slug) + '"' +
+        (playable ? ' tabindex="0" aria-label="Слушать: ' + esc(t.title) + '"' : "") + '>' +
         '<span class="fr-cover" style="background-image:url(\'' + t.cover + '\')"></span>' +
         '<span class="fr-body"><span class="fr-title">' + esc(t.title) + '</span>' +
           '<span class="fr-sub">' + esc(rowSub(t)) + '</span></span>' +
@@ -736,11 +737,27 @@
     loadTrack(i, true);
   }
 
+  /* клик по ЛЮБОМУ месту строки = переключение на этот трек: на телефоне (≤430 px)
+     кнопка .fr-play скрыта, и до этого в подборке нельзя было выбрать трек вообще */
   if (favList) favList.addEventListener("click", function (e) {
     var rm = e.target.closest(".fr-x");
     if (rm) { e.preventDefault(); toggleFav(rm.getAttribute("data-remove")); return; }
-    var pl = e.target.closest(".fr-play");
-    if (pl) { e.preventDefault(); playFavSlug(pl.getAttribute("data-play")); }
+    var row = e.target.closest(".fav-row");
+    if (!row) return;
+    var slug = row.getAttribute("data-slug");
+    var i = trackIndex(slug);
+    if (i < 0 || !isPlayable(NEW[i])) return;
+    e.preventDefault();
+    if (i === cur) { if (audio.paused) play(); else pause(); return; }   /* повторный клик по играющему — пауза */
+    playFavSlug(slug);
+  });
+  if (favList) favList.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    var row = e.target.closest(".fav-row");
+    if (!row || !row.hasAttribute("tabindex")) return;   /* реагируем только на строку в фокусе */
+    if (e.target.closest(".fr-x")) return;
+    e.preventDefault();
+    row.click();
   });
   if (favListenBtn) favListenBtn.addEventListener("click", function () {
     var q = favQueue();                                                         /* порядок добавления */

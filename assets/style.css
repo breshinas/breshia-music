@@ -441,9 +441,10 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
 .fav-list{list-style:none;margin:0;padding:0}
 .fav-list[hidden]{display:none}
 .fav-row{display:grid;grid-template-columns:56px minmax(0,1fr) auto auto;align-items:center;gap:16px;
-  padding:12px 20px;border-bottom:1px solid var(--line);transition:background .2s}
+  padding:12px 20px;border-bottom:1px solid var(--line);transition:background .2s;cursor:pointer}
 .fav-row:last-child{border-bottom:0}
 .fav-row:hover{background:var(--surface-2)}
+.fav-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .fr-cover{width:56px;height:56px;border-radius:4px;background-size:cover;background-position:center;background-color:#0B0B0D}
 .fr-body{min-width:0}
 .fr-title{display:block;font-family:var(--serif);font-size:18px;font-weight:500;line-height:1.2;
