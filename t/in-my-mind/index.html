@@ -81,43 +81,33 @@ h1 .feat{display:block;font-family:var(--sans);font-weight:400;font-size:clamp(1
   <div class="hero">
     <img class="big" src="../../assets/cover/in-my-mind.jpg" alt="Обложка «In My Mind»" width="600" height="600">
     <div class="txt">
-      <p class="eyebrow">Morning Glow · 2014 · Breshia</p>
+      <p class="eyebrow">Morning Glow · 2014</p>
       <h1>In My Mind</h1>
-      <p class="sub">Breshia · 2014 · Morning Glow · 2:26</p>
+      <p class="sub">2:26</p>
       <div class="acts"><a class="pill solid" href="https://breshia-music.ru/?t=in-my-mind"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg> Слушать</a><button class="pill" id="sh" type="button">Поделиться</button></div>
-      <p class="note">Кнопка «Слушать» открывает сайт и ставит сразу эту песню в плеер.</p>
-      <label class="sub" for="lnk" style="display:block;margin-bottom:7px">Ссылка на песню</label>
-      <div class="field">
-        <input id="lnk" readonly value="https://breshia-music.ru/t/in-my-mind/">
-        <button class="copy" id="cp" type="button">Скопировать</button>
-      </div>
       <div class="plats"></div>
     </div>
   </div>
-  <div class="howto">
-    <h2>Почему ссылка разворачивается карточкой</h2>
-    <p>У каждой песни своя статичная страница со своими og-метатегами — поэтому мессенджер показывает обложку
-    и название. Квадратную обложку чаты режут по центру, поэтому превью — отдельная картинка 1200×630.</p>
-    <a class="ogcard" href="../../assets/og/in-my-mind.jpg"><img src="../../assets/og/in-my-mind.jpg" alt="Превью 1200×630: In My Mind" width="1200" height="630" loading="lazy"></a>
-  </div>
 </div>
 <script>(function(){
-  function copy(v){
-    function done(b){ if(!b.getAttribute('data-orig')) b.setAttribute('data-orig',b.textContent.trim());
+  /* Кнопка «Поделиться»: нативный share, иначе копируем адрес страницы.
+     Поля со ссылкой на странице больше нет — адрес берём из location. */
+  function copy(v,b){
+    function done(){ if(!b) return; if(!b.getAttribute('data-orig')) b.setAttribute('data-orig',b.textContent.trim());
       b.classList.add('done'); b.textContent='Скопировано';
       clearTimeout(b._t); b._t=setTimeout(function(){ b.classList.remove('done'); b.textContent=b.getAttribute('data-orig'); },1900); }
     function fb(){ try{ var t=document.createElement('textarea'); t.value=v; t.setAttribute('readonly','');
       t.style.position='fixed'; t.style.top='-1000px'; document.body.appendChild(t); t.select();
       document.execCommand('copy'); document.body.removeChild(t); }catch(e){} }
-    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(v).then(function(){done(el)},function(){fb();done(el)}); } else { fb(); done(el); } }catch(e){ fb(); done(el); }
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(v).then(done,function(){fb();done();}); } else { fb(); done(); } }catch(e){ fb(); done(); }
   }
-  var el=document.getElementById('cp');
-  if(el) el.addEventListener('click',function(){ copy(document.getElementById('lnk').value); });
+  var el=document.getElementById('cp'), lnk=document.getElementById('lnk');
+  if(el && lnk) el.addEventListener('click',function(){ copy(lnk.value, el); });
   var sb=document.getElementById('sh');
   if(sb) sb.addEventListener('click',function(){
-    var u=document.getElementById('lnk').value, t=document.title;
+    var u=(lnk&&lnk.value)||location.href, t=document.title;
     try{ if(navigator.share){ navigator.share({title:t,url:u}).catch(function(){}); return; } }catch(e){}
-    copy(u);
+    copy(u, sb);
   });
 })();
 </script>
