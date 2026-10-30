@@ -386,6 +386,55 @@
     });
     /* delegate on the card so a click anywhere (card or overlay button) plays */
     rec.art.addEventListener("click", function () { onCardClick(rec.i); });
+    wireCardSeek(rec);
+  }
+
+  /* мини-волна на карточке — перемотка. Работает ТОЛЬКО у текущего загруженного
+     трека (cur === rec.i): у остальных аудио ещё не загружено, перемотка бессмысленна,
+     поэтому клик по их волне ведёт себя как раньше — играет трек.
+     Клик/драг по волне не должен всплывать до делегированного click карточки и
+     переключать play/pause — иначе тянешь по волне, а трек встаёт на паузу.
+     pointerdown/up + setPointerCapture — как в нижней полосе (#seek). */
+  var cardDrag = null;   /* карточка, по волне которой сейчас тянут */
+  function cardSeekRatio(rec, clientX) {
+    var r = rec.canvas.getBoundingClientRect();
+    return r.width ? Math.min(1, Math.max(0, (clientX - r.left) / r.width)) : 0;
+  }
+  function cardSeekTo(rec, clientX) {
+    if (cur !== rec.i) return;                 /* перематываем только текущий трек */
+    var t = curTrack(); if (!t) return;
+    var d = audio.duration || t.duration || 0;
+    if (!d) return;
+    audio.currentTime = cardSeekRatio(rec, clientX) * d;
+    updateTimes(); refreshWave();              /* прогресс активной карточки не отстаёт */
+  }
+  function wireCardSeek(rec) {
+    var cv = rec.canvas; if (!cv) return;
+    cv.addEventListener("pointerdown", function (e) {
+      if (cur !== rec.i) return;      /* не текущий трек — клик по волне играет его как раньше */
+      e.preventDefault();
+      e.stopPropagation();
+      cardDrag = rec;
+      cv.classList.add("dragging");
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+      cardSeekTo(rec, e.clientX);
+    });
+    cv.addEventListener("pointermove", function (e) {
+      if (cardDrag !== rec) return;
+      cardSeekTo(rec, e.clientX);
+    });
+    function endSeek() {
+      if (cardDrag !== rec) return;
+      cardDrag = null;
+      cv.classList.remove("dragging");
+    }
+    cv.addEventListener("pointerup", endSeek);
+    cv.addEventListener("pointercancel", endSeek);
+    /* click всплывает отдельно от pointerdown; на текущем треке гасим его, чтобы
+       клик/драг по волне не дёргал play/pause делегированного обработчика карточки */
+    cv.addEventListener("click", function (e) {
+      if (cur === rec.i) { e.preventDefault(); e.stopPropagation(); }
+    });
   }
 
   (function () {
@@ -901,8 +950,9 @@
     if (e.target.closest("[data-close]")) { closeShare(); return; }
     var c = e.target.closest("[data-copy]");
     if (c) {
-      var val = c.getAttribute("data-copy") === "pl" ? (sharePlLink ? sharePlLink.value : "") : (shareSongLink ? shareSongLink.value : "");
-      if (val) copyText(val, c);
+      var kind = c.getAttribute("data-copy") === "pl" ? "pl" : "song";
+      var val = kind === "pl" ? (sharePlLink ? sharePlLink.value : "") : (shareSongLink ? shareSongLink.value : "");
+      if (val) { copyText(val, c); stShare(kind, stShareSlugs(kind)); }   /* share — в момент действия */
     }
   });
   document.addEventListener("keydown", function (e) {
@@ -925,6 +975,8 @@
     var enc = encodeURIComponent(url), tx = encodeURIComponent(text);
     var map = { tg: "https://t.me/share/url?url=" + enc + "&text=" + tx, vk: "https://vk.com/share.php?url=" + enc };
     try { window.open(map[b.getAttribute("data-shareto")] || url, "_blank", "noopener"); } catch (e2) {}
+    var shk = slot === "pl" ? "pl" : "song";
+    stShare(shk, stShareSlugs(shk));   /* share — в момент нажатия на Telegram/ВКонтакте */
   });
 
   /* на телефоне — системный лист «Поделиться», если браузер его умеет */
@@ -944,6 +996,8 @@
     var payload = slot === "pl"
       ? { title: "Подборка — " + ARTIST, text: "Моя подборка — " + ARTIST, url: url }
       : { title: (t ? t.title : ARTIST) + " — " + ARTIST, text: t ? t.title : "", url: url };
+    var shk = slot === "pl" ? "pl" : "song";
+    stShare(shk, stShareSlugs(shk));   /* нативный лист: share шлём в момент запуска */
     try { var p = navigator.share(payload); if (p && p.catch) p.catch(function () {}); } catch (e2) {}
   });
 
@@ -1192,9 +1246,10 @@
   /* ==================== свой приёмник событий (статистика, docs/stats-api.md) ====================
      Включается ТОЛЬКО данными: window.BRESHIA.stats = {endpoint, enabled, stream}. Нет endpoint или
      enabled === false — ни одного запроса наружу (как и с Метрикой). Канал отдельный от целей Метрики:
-     те шлют goal, а здесь — плоский контракт бекенда {v,t,s,sec,favs}.
-     События: visit (1 раз на загрузку), beat (каждые 20 с, пока вкладка видима), play, listen (накопленные
-     секунды), skip (ушли раньше 15 с), finish (дослушали), favs (снимок подборки). */
+     те шлют goal, а здесь — плоский контракт бекенда {v,t,s,sec,favs,k,pl}.
+     События: visit (1 раз на загрузку), beat (каждые 20 с; несёт sec — сколько посетитель был В СЕТИ),
+     play, listen (накопленные секунды), skip (ушли раньше 15 с), finish (дослушали), favs (снимок подборки),
+     share (шеринг песни или подборки в момент нажатия). */
   var ST = B.stats || {};
   var ST_ON = !!(ST.enabled !== false && ST.endpoint);
   var ST_EP = ST_ON ? String(ST.endpoint) : "";
@@ -1233,6 +1288,76 @@
     stSend(obj, beacon);
   }
 
+  /* --- «в сети»: вкладка видима ИЛИ реально играет музыка.
+     Копим по РЕАЛЬНОМУ времени (Date.now), а не по числу тиков: в фоне таймеры тротлятся, и счёт
+     тиков недосчитал бы онлайн. Накопленное уходит в каждом beat как sec и обнуляется. --- */
+  var stOn = { acc: 0, at: Date.now() };
+  function stOnLine() { return !document.hidden || !!(audio && audio.src && !audio.paused); }
+  function stOnTick() {
+    var now = Date.now(), dt = (now - stOn.at) / 1000;
+    stOn.at = now;
+    /* берём только нормальный ход времени: длинный разрыв (сон вкладки, долгий фон) клампим */
+    if (dt > 0 && dt <= 300 && stOnLine()) stOn.acc += dt;
+  }
+  function stBeat(beacon) {
+    if (!ST_ON) { stOn.acc = 0; return; }
+    stOnTick();
+    var sec = Math.round(Math.min(300, Math.max(0, stOn.acc)) * 10) / 10;
+    if (sec < 0.1) { stOn.acc = 0; return; }    /* нечего докладывать — не спамим событиями */
+    stOn.acc = 0;
+    stEv({ t: "beat", sec: sec }, beacon);
+  }
+
+  /* favs: снимок подборки (только слаги с аудио). Живёт ВНЕ блока ST_ON: он же нужен для
+     share-подборки; включённость приёмника проверяют сам сторож и stEv. */
+  var stFavSent = "";
+  function stFavSnapshot() {
+    var out = [];
+    for (var k = 0; k < fav.length; k++) {
+      var fi = trackIndex(fav[k]);
+      if (fi >= 0 && isPlayable(NEW[fi]) && out.indexOf(fav[k]) < 0) out.push(fav[k]);
+    }
+    return out;
+  }
+  function stFavs(beacon) {
+    if (!ST_ON) return;
+    var snap = stFavSnapshot(), key = snap.join(",");
+    if (key === stFavSent) return;
+    stFavSent = key;
+    stEv({ t: "favs", favs: snap.slice(0, 200) }, beacon);
+  }
+  window.__breshiaFavsSent = function () { return stFavSent; };
+
+  /* --- share: единая точка контракта. Приоритет — window.breshiaShare (assets/counters.js: он же
+     знает endpoint событий и id посетителя); если его нет — шлём сами тем же телом. При выключенной
+     статистике не уходит ничего; счётчик шерингов в интерфейсе сайта НЕ показываем. --- */
+  function stShareSlugs(kind) {
+    if (kind === "pl") return stFavSnapshot();
+    var t = curTrack();
+    return t ? [t.slug] : [];
+  }
+  function stShare(kind, slugs) {
+    kind = kind === "pl" ? "pl" : "song";
+    if (typeof window.breshiaShare === "function") {
+      try { window.breshiaShare(kind, slugs || null); } catch (e) {}
+      return;
+    }
+    if (!ST_ON) return;
+    var ev;
+    if (kind === "pl") {
+      var seen = {}, pl = [];
+      (slugs || []).forEach(function (s) { if (s && !seen[s]) { seen[s] = 1; pl.push(s); } });
+      pl.sort(); pl = pl.slice(0, 100);
+      if (!pl.length) return;
+      ev = { t: "share", k: "pl", pl: pl };
+    } else {
+      var s = (slugs && slugs[0]) || (curTrack() ? curTrack().slug : "");
+      if (!s) return;
+      ev = { t: "share", k: "song", s: s };
+    }
+    stEv(ev);
+  }
+
   /* --- listen: накопленные секунды реально проигранного времени --- */
   var ST_TICK = 0.5;                       /* шаг накопления, с */
   var stL = { slug: null, acc: 0, ct: 0 };
@@ -1259,38 +1384,26 @@
     setInterval(stLTick, ST_TICK * 1000);
     setInterval(function () { if (!audio.paused) stLFlush(); }, 30000);   /* раз в 30 с во время игры */
     stEv({ t: "visit" });
-    /* beat: страница открыта. Первый — СРАЗУ при загрузке: иначе «сейчас на сайте» врёт
-       20 секунд, а если человек перезагружает страницу чаще, чем раз в 20 с, он не попадёт
-       в счёт вообще (живой случай 30.10: 4 visit за 33 с и ни одного beat → «0 онлайн»).
-       Дальше — каждые 20 с, тишина, пока вкладка не видима (background не должен врать). */
-    stEv({ t: "beat" });
-    setInterval(function () { if (!document.hidden) stEv({ t: "beat" }); }, 20000);
+    /* beat: посетитель в сети (вкладка видима ИЛИ играет музыка — фоновый слушатель остаётся онлайн,
+       это прямая просьба владельца). Первый — СРАЗУ при загрузке: иначе «сейчас на сайте» врёт
+       20 секунд, а если человек перезагружает страницу чаще, чем раз в 20 с, он не попадёт в счёт.
+       Дальше — каждые 20 с; каждый beat несёт sec — сколько секунд был в сети с прошлого beat. */
+    stOn.at = Date.now();
+    stEv({ t: "beat", sec: 0 });
+    setInterval(stBeat, 20000);
     document.addEventListener("visibilitychange", function () {
-      if (document.hidden) { stLTick(); stLFlush(true); }
-      else stEv({ t: "beat" });
-    });
-    window.addEventListener("pagehide", function () { stLTick(); stLFlush(true); stFavs(true); });
-    /* favs: снимок подборки при загрузке и после любого изменения (только слаги с аудио) */
-    var stFavSent = "";
-    function stFavSnapshot() {
-      var out = [];
-      for (var k = 0; k < fav.length; k++) {
-        var fi = trackIndex(fav[k]);
-        if (fi >= 0 && isPlayable(NEW[fi]) && out.indexOf(fav[k]) < 0) out.push(fav[k]);
+      if (document.hidden) {
+        stLTick(); stLFlush(true);
+        /* ушли в фон БЕЗ музыки — досылаем накопленное время, секунды не теряем */
+        if (!(audio && audio.src && !audio.paused)) stBeat(true);
+      } else {
+        stBeat();   /* вернулись — сразу отмечаемся в сети */
       }
-      return out;
-    }
-    function stFavs(beacon) {
-      if (!ST_ON) return;
-      var snap = stFavSnapshot(), key = snap.join(",");
-      if (key === stFavSent) return;
-      stFavSent = key;
-      stEv({ t: "favs", favs: snap.slice(0, 200) }, beacon);
-    }
-    window.__breshiaFavsSent = function () { return stFavSent; };
+    });
+    window.addEventListener("pagehide", function () { stLTick(); stLFlush(true); stBeat(true); stFavs(true); });
+    /* favs: снимок при загрузке и после любого изменения; дешёвый сторож раз в 1.5 с ловит
+       «слушать подборку» и импорт чужой подборки без правок в их обработчиках */
     stFavs();
-    /* дешёвый сторож подборки: снимок шлём при изменении, а не в каждом обработчике —
-       так «слушать подборку» и импорт чужой подборки тоже попадают в счёт без правок в них */
     setInterval(stFavs, 1500);
     /* play: раз на запуск (в т.ч. resume после паузы — по контракту это новое включение) */
     var stLastPlayKey = "", stLastPlayAt = 0;

@@ -160,6 +160,56 @@
     document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });
   }
 
+  /* ---------- шеринг: единая точка контракта (её зовут app.js и страницы /t/<slug>/) ----------
+     Тело: {v,t:"share",k:"song"|"pl", s|pl}. Для песни слаг берём из аргумента, иначе из CFG.slug
+     (на странице песни он есть); для подборки — уникальные слаги по алфавиту (1..100). При
+     enabled=false или отсутствии endpoint не делает НИЧЕГО (счётчик шерингов в интерфейсе не показываем). */
+  function vid() {
+    var id = "";
+    try { id = localStorage.getItem("breshia:vid") || ""; } catch (e) { id = ""; }
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+      try {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : ("v" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10));
+      } catch (e) { id = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+      try { localStorage.setItem("breshia:vid", id); } catch (e2) {}
+    }
+    return id;
+  }
+  function evEndpoint() {
+    if (CFG.ev) return String(CFG.ev);
+    var b = window.BRESHIA || {};
+    if (b.stats && b.stats.endpoint) return String(b.stats.endpoint);
+    /* из api (…/api/stats) выводим …/api/e */
+    var api = API || CFG.api || "";
+    return api ? String(api).replace(/\/stats\/?$/, "") + "/e" : "";
+  }
+  window.breshiaShare = function (kind, slugs) {
+    if (CFG.enabled === false) return;
+    var ep = evEndpoint();
+    if (!ep) return;
+    var ev = { v: vid(), t: "share", k: (kind === "pl" ? "pl" : "song") };
+    if (ev.k === "pl") {
+      var seen = {}, pl = [];
+      (slugs || []).forEach(function (s) { if (s && !seen[s]) { seen[s] = 1; pl.push(s); } });
+      pl.sort();
+      pl = pl.slice(0, 100);
+      if (!pl.length) return;
+      ev.pl = pl;
+    } else {
+      var s = (slugs && slugs[0]) || CFG.slug || "";
+      if (!s) return;
+      ev.s = String(s);
+    }
+    var body;
+    try { body = JSON.stringify(ev); } catch (e) { return; }
+    try { if (navigator.sendBeacon) { navigator.sendBeacon(ep, body); return; } } catch (e2) {}
+    try {
+      if (window.fetch) fetch(ep, { method: "POST", body: body, keepalive: true, mode: "cors",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" } }).catch(function () {});
+    } catch (e3) {}
+  };
+
   /* 1A: переезд цифры на узком экране + пересборка, если карточки перерисовали */
   var mq = window.matchMedia("(max-width:900px)");
   var relocT = 0;

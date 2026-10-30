@@ -113,13 +113,16 @@ h1 .feat{display:block;font-family:var(--sans);font-weight:400;font-size:clamp(1
   if(el && lnk) el.addEventListener('click',function(){ copy(lnk.value, el); });
   var sb=document.getElementById('sh');
   if(sb) sb.addEventListener('click',function(){
+    /* share-событие шлём в момент нажатия (клей/нативный лист — не важно); страница грузит
+       только counters.js, конфиг с endpoint и слагом лежит в window.BRESHIA_COUNTERS */
+    try{ if(window.breshiaShare) window.breshiaShare('song'); }catch(e){}
     var u=(lnk&&lnk.value)||location.href, t=document.title;
     try{ if(navigator.share){ navigator.share({title:t,url:u}).catch(function(){}); return; } }catch(e){}
     copy(u, sb);
   });
 })();
 </script>
-<script>window.BRESHIA_COUNTERS = {"api": "https://stats.breshia-music.ru/api/stats", "enabled": true, "slug": "all-of-your-songs"};</script>
+<script>window.BRESHIA_COUNTERS = {"api": "https://stats.breshia-music.ru/api/stats", "enabled": true, "ev": "https://stats.breshia-music.ru/api/e", "slug": "all-of-your-songs"};</script>
 <script src="../../assets/counters.js"></script>
 </body>
 </html>

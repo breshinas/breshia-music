@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Девочка с лопатой — Breshia</title>
-<meta name="description" content="Премьера 31 октября 2026. Слушать онлайн — на breshia-music.ru в день релиза.">
+<meta name="description" content="2026 · сингл · 3:06 · слушать на breshia-music.ru">
 <link rel="canonical" href="https://breshia-music.ru/t/devochka/">
 <link rel="icon" type="image/png" sizes="32x32" href="https://breshia-music.ru/assets/favicon-32.png">
 <meta name="theme-color" content="#C8F13A">
 <meta property="og:type" content="music.song">
 <meta property="og:site_name" content="Breshia">
 <meta property="og:title" content="Девочка с лопатой — Breshia">
-<meta property="og:description" content="Премьера 31 октября 2026. Слушать онлайн — на breshia-music.ru в день релиза.">
+<meta property="og:description" content="2026 · сингл · 3:06 · слушать на breshia-music.ru">
 <meta property="og:url" content="https://breshia-music.ru/t/devochka/">
 <meta property="og:image" content="https://breshia-music.ru/assets/og/devochka.jpg">
 <meta property="og:image:width" content="1200">
@@ -19,7 +19,7 @@
 <meta property="og:image:alt" content="Девочка с лопатой — Breshia">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Девочка с лопатой — Breshia">
-<meta name="twitter:description" content="Премьера 31 октября 2026. Слушать онлайн — на breshia-music.ru в день релиза.">
+<meta name="twitter:description" content="2026 · сингл · 3:06 · слушать на breshia-music.ru">
 <meta name="twitter:image" content="https://breshia-music.ru/assets/og/devochka.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -91,7 +91,7 @@ h1 .feat{display:block;font-family:var(--sans);font-weight:400;font-size:clamp(1
       <p class="eyebrow">сингл · 2026</p>
       <h1>Девочка с лопатой</h1>
       <p class="sub">3:06</p>
-      <div class="acts"><span class="pill lock">Премьера 31 октября 2026</span><button class="pill" id="sh" type="button">Поделиться</button></div>
+      <div class="acts"><a class="pill solid" href="https://breshia-music.ru/?t=devochka"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg> Слушать</a><button class="pill" id="sh" type="button">Поделиться</button></div>
       <p class="hero-stats" id="tStats" hidden></p>
       <div class="plats"></div>
     </div>
@@ -113,13 +113,16 @@ h1 .feat{display:block;font-family:var(--sans);font-weight:400;font-size:clamp(1
   if(el && lnk) el.addEventListener('click',function(){ copy(lnk.value, el); });
   var sb=document.getElementById('sh');
   if(sb) sb.addEventListener('click',function(){
+    /* share-событие шлём в момент нажатия (клей/нативный лист — не важно); страница грузит
+       только counters.js, конфиг с endpoint и слагом лежит в window.BRESHIA_COUNTERS */
+    try{ if(window.breshiaShare) window.breshiaShare('song'); }catch(e){}
     var u=(lnk&&lnk.value)||location.href, t=document.title;
     try{ if(navigator.share){ navigator.share({title:t,url:u}).catch(function(){}); return; } }catch(e){}
     copy(u, sb);
   });
 })();
 </script>
-<script>window.BRESHIA_COUNTERS = {"api": "https://stats.breshia-music.ru/api/stats", "enabled": true, "slug": "devochka"};</script>
+<script>window.BRESHIA_COUNTERS = {"api": "https://stats.breshia-music.ru/api/stats", "enabled": true, "ev": "https://stats.breshia-music.ru/api/e", "slug": "devochka"};</script>
 <script src="../../assets/counters.js"></script>
 </body>
 </html>

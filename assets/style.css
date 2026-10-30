@@ -116,7 +116,13 @@ h2{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.4vw,44px);lin
    названием; текст фита переносится, чтобы никогда не выезжать за карточку. `.is-active` его не
    перекрашивает — свой color перебивает .track-card.is-active .tc-title. */
 .tc-feat{margin:4px 0 0;font-size:.78em;font-weight:400;color:var(--muted);letter-spacing:0;line-height:1.25}
-.tc-wave{width:100%;height:46px;display:block;pointer-events:none;min-width:0}
+/* волна на карточке — элемент управления: клик/драг = перемотка. Поднята над
+   оверлеем .tc-hit (z-index:3) и получает pointer-events; ♥ (z-index:6) остаётся выше.
+   touch-action:none — тяга по волне не скроллит страницу. Вёрстка карточки не меняется. */
+.tc-wave{width:100%;height:46px;display:block;min-width:0;position:relative;z-index:4;
+  pointer-events:auto;cursor:pointer;touch-action:none;transition:background .2s}
+.tc-wave:hover{background:rgba(200,241,58,.05)}
+.tc-wave.dragging{background:rgba(200,241,58,.09)}
 .tc-right{display:flex;align-items:center;gap:16px}
 .tc-eq{display:flex;align-items:flex-end;gap:3px;height:22px;width:22px;pointer-events:none}
 .tc-eq i{display:block;width:3px;height:6px;background:var(--accent);border-radius:1px;opacity:.35}
@@ -636,7 +642,7 @@ body.stats-page section{padding:0;border-top:0}
 
 .st-table{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .st-head,.st-row{display:grid;
-  grid-template-columns:minmax(0,1fr) 100px 106px 96px 50px 110px;
+  grid-template-columns:minmax(0,1fr) 92px 98px 88px 44px 96px 108px;
   gap:10px;align-items:center;padding:11px clamp(12px,1.6vw,18px)}
 .st-head{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
   border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
@@ -652,10 +658,21 @@ body.stats-page section{padding:0;border-top:0}
 .st-plays .v{font-variant-numeric:tabular-nums;font-weight:600}
 .st-bar{display:block;width:100%;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
 .st-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .5s ease}
-.st-listen .v,.st-avg .v,.st-fav .v,.st-last .v{font-variant-numeric:tabular-nums;color:var(--muted);
+.st-listen .v,.st-avg .v,.st-fav .v,.st-shares .v,.st-last .v{font-variant-numeric:tabular-nums;color:var(--muted);
   font-weight:500;font-size:13px}
 .st-fav .v{color:var(--ink)}
 .st-last .v{font-size:12.5px}
+
+/* блок «Подборки»: N треков · M шерингов (docs/stats-api.md) */
+.st-pls{margin-top:22px}
+.st-pls[hidden]{display:none}
+.st-pls-head{padding:11px clamp(12px,1.6vw,18px);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
+.st-pls-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding:11px clamp(12px,1.6vw,18px);border-bottom:1px solid rgba(38,38,42,.7);font-size:14px;min-width:0}
+.st-pls-row:last-child{border-bottom:0}
+.st-pls-n{color:var(--ink);overflow-wrap:anywhere}
+.st-pls-s{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 @media (max-width:760px){
   .st-head{display:none}

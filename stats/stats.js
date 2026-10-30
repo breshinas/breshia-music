@@ -48,6 +48,13 @@
     if (m) return m + " м " + (r < 10 ? "0" : "") + r + " с";
     return r + " с";
   }
+  /* среднее время на посетителя — договорённый формат «мин/с» */
+  function avgDur(sec) {
+    var s = Math.max(0, Math.round(Number(sec) || 0));
+    var m = Math.floor(s / 60), r = s % 60;
+    if (!m) return r + " с";
+    return m + " мин" + (r ? " " + r + " с" : "");
+  }
   function ago(iso) {
     if (!iso) return "—";
     var t = Date.parse(iso);
@@ -87,6 +94,7 @@
       '<span class="st-c st-listen" data-l="время"><b class="v"></b></span>' +
       '<span class="st-c st-avg" data-l="среднее"><b class="v"></b></span>' +
       '<span class="st-c st-fav" data-l="в любимых"><b class="v"></b></span>' +
+      '<span class="st-c st-shares" data-l="поделились"><b class="v"></b></span>' +
       '<span class="st-c st-last" data-l="последний раз"><b class="v"></b></span>';
     el.querySelector(".st-title").textContent = trackName(slug);
     var sl = el.querySelector(".st-slug");
@@ -98,6 +106,7 @@
       listen: el.querySelector(".st-listen .v"),
       avg: el.querySelector(".st-avg .v"),
       fav: el.querySelector(".st-fav .v"),
+      shares: el.querySelector(".st-shares .v"),
       last: el.querySelector(".st-last .v"),
       bar: el.querySelector(".st-bar i")
     };
@@ -118,6 +127,9 @@
     put(document.getElementById("sumPlays"), N(tot.plays || 0));
     put(document.getElementById("sumListen"), dur(tot.listenSec || 0));
     put(document.getElementById("sumFavs"), N(tot.favorites || 0));
+    put(document.getElementById("sumOnlineSec"), dur(tot.onlineSec || 0));
+    var visitors = tot.visitors || 0;
+    put(document.getElementById("sumAvgOn"), (tot.onlineSec != null && visitors) ? avgDur(tot.onlineSec / visitors) : "—");
     if (elUpdated) {
       var ts = data.updated ? new Date(data.updated) : null;
       put(elUpdated, ts && isFinite(ts.getTime())
@@ -151,11 +163,42 @@
       put(r.listen, dur(t.listenSec || 0));
       put(r.avg, t.plays ? dur((t.listenSec || 0) / t.plays) : "—");
       put(r.fav, N(t.favorites || 0));
+      put(r.shares, N(t.shares || 0));
       put(r.last, ago(t.lastPlayed));
       if (r.bar) r.bar.style.width = Math.round(Math.min(1, (t.plays || 0) / maxPlays) * 100) + "%";
       r.el.classList.toggle("is-zero", !(t.plays || 0));
     });
+    renderPlaylists(data.playlists);
     setLive(true, "live");
+  }
+
+  /* ---------- «Подборки»: N треков · M шерингов, по убыванию шерингов; пусто — блока нет ---------- */
+  function plTracks(p) { return (p && (Array.isArray(p.slugs) ? p.slugs.length
+    : (Array.isArray(p.tracks) ? p.tracks.length : (p.tracks || p.count || p.n || 0)))) || 0; }
+  function renderPlaylists(raw) {
+    var box = document.getElementById("stPlaylists"), rowsEl = document.getElementById("stPlsRows");
+    if (!box || !rowsEl) return;
+    var arr = Array.isArray(raw) ? raw
+      : (raw && typeof raw === "object" ? Object.keys(raw).map(function (k) { return raw[k]; }) : []);
+    arr = arr.filter(function (p) { return p && plTracks(p) > 0; })
+             .sort(function (a, b) { return (b.shares || 0) - (a.shares || 0); });
+    if (!arr.length) { box.hidden = true; rowsEl.innerHTML = ""; renderPlaylists._k = ""; return; }
+    var key = arr.map(function (p) { return plTracks(p) + ":" + (p.shares || 0); }).join("|");
+    if (key === renderPlaylists._k) { box.hidden = false; return; }   /* не пересобираем — цифры не дёргаются */
+    renderPlaylists._k = key;
+    rowsEl.innerHTML = arr.slice(0, 40).map(function (p) {
+      var n = plTracks(p), s = p.shares || 0;
+      return '<div class="st-pls-row"><span class="st-pls-n">' + n + " " +
+        plural(n, "трек", "трека", "треков") + '</span><span class="st-pls-s">' + N(s) + " " +
+        plural(s, "шеринг", "шеринга", "шерингов") + "</span></div>";
+    }).join("");
+    box.hidden = false;
+  }
+  function plural(n, a, b, c) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return a;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return b;
+    return c;
   }
 
   function fail() {
@@ -163,6 +206,7 @@
     elEmpty.hidden = false;
     elCards.hidden = true;
     elTable.hidden = true;
+    var pl = document.getElementById("stPlaylists"); if (pl) pl.hidden = true;
   }
 
   /* ---------- транспорт: SSE + фолбэк на fetch ---------- */
@@ -232,6 +276,8 @@
       order = []; rows = {}; maxPlays = 0; gotFirst = false;
       elRows.innerHTML = "";
       elTable.hidden = true;
+      var pls = document.getElementById("stPlaylists"); if (pls) pls.hidden = true;
+      renderPlaylists._k = "";
       if (RANGE === "all") { stopPoll(); connect(); }
       else { closeStream(); stopPoll(); startPoll(); }
     });
