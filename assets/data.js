@@ -29040,11 +29040,11 @@ window.BRESHIA = {
   "statsSource": "site/assets/stats.js (генерируется tools/metrics.py, руками не править)"
  },
  "stats": {
-  "endpoint": "http://192.168.100.2:8791/api/e",
+  "endpoint": "https://stats.breshia-music.ru/api/e",
   "enabled": true,
-  "stream": "http://192.168.100.2:8791/api/stats/stream",
-  "stats": "http://192.168.100.2:8791/api/stats",
-  "note": "Свой приёмник событий (тест-стенд). Нет endpoint или enabled=false — сайт не делает ни одного запроса наружу. События: visit, beat, play, listen, skip, finish, favs. Страница /stats/ читает stream (SSE), при ошибке — фолбэк на stats."
+  "stream": "https://stats.breshia-music.ru/api/stats/stream",
+  "stats": "https://stats.breshia-music.ru/api/stats",
+  "note": "Свой приёмник событий. Публичный вход https://stats.breshia-music.ru — это тест-стенд (192.168.100.2:8791) через ingress эльфа: A-запись на 188.40.214.20, TLS Let's Encrypt, дальше fx-tunnel на loopback эльфа. Нет endpoint или enabled=false — сайт не делает ни одного запроса наружу. События: visit, beat, play, listen, skip, finish, favs. Страница /stats/ читает stream (SSE), при ошибке — фолбэк на stats."
  },
  "policy": {
   "streaming": "Музыка из стримингов фиксируется ТОЛЬКО как ссылка: стриминги отдают куцые превью, встраивать их нельзя.",
