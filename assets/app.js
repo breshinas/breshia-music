@@ -614,7 +614,10 @@
 
   function loadTrack(i, autoplay) {
     if (i < 0 || i >= NEW.length || !isPlayable(NEW[i])) return;   /* teasers are never loaded */
-    if (i !== cur) { try { mMaybeSkip(cur); } catch (e) {} }       /* метрика: ушли раньше 15 секунд */
+    if (i !== cur) {
+      try { mMaybeSkip(cur); } catch (e) {}                       /* метрика: ушли раньше 15 секунд */
+      try { if (window.__breshiaStSkip) window.__breshiaStSkip(cur); } catch (e) {}   /* свой приёмник: skip + остаток секунд */
+    }
     cur = i;
     var t = NEW[cur];
     waveFlash();                 /* dim the wave so new peaks don't pop in */
@@ -1185,6 +1188,131 @@
   }
   var mFired = {};
   function mTrack() { return (cur >= 0 && NEW[cur]) ? NEW[cur] : null; }
+
+  /* ==================== свой приёмник событий (статистика, docs/stats-api.md) ====================
+     Включается ТОЛЬКО данными: window.BRESHIA.stats = {endpoint, enabled, stream}. Нет endpoint или
+     enabled === false — ни одного запроса наружу (как и с Метрикой). Канал отдельный от целей Метрики:
+     те шлют goal, а здесь — плоский контракт бекенда {v,t,s,sec,favs}.
+     События: visit (1 раз на загрузку), beat (каждые 20 с, пока вкладка видима), play, listen (накопленные
+     секунды), skip (ушли раньше 15 с), finish (дослушали), favs (снимок подборки). */
+  var ST = B.stats || {};
+  var ST_ON = !!(ST.enabled !== false && ST.endpoint);
+  var ST_EP = ST_ON ? String(ST.endpoint) : "";
+  var LS_VID = "breshia:vid";
+  var ST_V = "";
+  function stVid() {
+    var id = "";
+    try { id = localStorage.getItem(LS_VID) || ""; } catch (e) { id = ""; }
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+      try {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : ("v" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10));
+      } catch (e) { id = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+      try { localStorage.setItem(LS_VID, id); } catch (e2) {}
+    }
+    return id;
+  }
+  function stSend(ev, beacon) {
+    if (!ST_ON) return;
+    var body;
+    try { body = JSON.stringify(ev); } catch (e) { return; }
+    if (beacon && navigator.sendBeacon) { try { navigator.sendBeacon(ST_EP, body); return; } catch (e3) {} }
+    try {
+      if (window.fetch) {
+        fetch(ST_EP, { method: "POST", body: body, keepalive: true, mode: "cors",
+                       headers: { "Content-Type": "text/plain;charset=UTF-8" } })
+          .catch(function () { /* приёмник недоступен — плеер от этого не страдает */ });
+        return;
+      }
+    } catch (e4) {}
+    if (navigator.sendBeacon) { try { navigator.sendBeacon(ST_EP, body); } catch (e5) {} }
+  }
+  function stEv(obj, beacon) {
+    if (!ST_ON) return;
+    obj.v = ST_V;
+    stSend(obj, beacon);
+  }
+
+  /* --- listen: накопленные секунды реально проигранного времени --- */
+  var ST_TICK = 0.5;                       /* шаг накопления, с */
+  var stL = { slug: null, acc: 0, ct: 0 };
+  function stLTick() {
+    var ct = audio.currentTime || 0;
+    if (audio.paused || !audio.src) { stL.ct = ct; return; }
+    var dt = ct - stL.ct;
+    stL.ct = ct;
+    /* перемотка вперёд/назад не должна надувать секунды: берём только нормальный ход времени */
+    if (dt > 0 && dt <= 2 * ST_TICK) stL.acc += dt;
+  }
+  function stLStart(t) {
+    if (!ST_ON || !t) return;
+    if (stL.slug !== t.slug) { stLFlush(); stL.slug = t.slug; stL.acc = 0; }
+    stL.ct = audio.currentTime || 0;
+  }
+  function stLFlush(beacon) {
+    if (!ST_ON || !stL.slug || stL.acc < 0.1) { stL.acc = 0; return; }
+    stEv({ t: "listen", s: stL.slug, sec: Math.round(stL.acc * 10) / 10 }, beacon);
+    stL.acc = 0;
+  }
+  if (ST_ON) {
+    ST_V = stVid();
+    setInterval(stLTick, ST_TICK * 1000);
+    setInterval(function () { if (!audio.paused) stLFlush(); }, 30000);   /* раз в 30 с во время игры */
+    stEv({ t: "visit" });
+    /* beat: страница открыта. Тишина, пока вкладка не видима (иначе «онлайн» врёт) */
+    setInterval(function () { if (!document.hidden) stEv({ t: "beat" }); }, 20000);
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) { stLTick(); stLFlush(true); }
+      else stEv({ t: "beat" });
+    });
+    window.addEventListener("pagehide", function () { stLTick(); stLFlush(true); stFavs(true); });
+    /* favs: снимок подборки при загрузке и после любого изменения (только слаги с аудио) */
+    var stFavSent = "";
+    function stFavSnapshot() {
+      var out = [];
+      for (var k = 0; k < fav.length; k++) {
+        var fi = trackIndex(fav[k]);
+        if (fi >= 0 && isPlayable(NEW[fi]) && out.indexOf(fav[k]) < 0) out.push(fav[k]);
+      }
+      return out;
+    }
+    function stFavs(beacon) {
+      if (!ST_ON) return;
+      var snap = stFavSnapshot(), key = snap.join(",");
+      if (key === stFavSent) return;
+      stFavSent = key;
+      stEv({ t: "favs", favs: snap.slice(0, 200) }, beacon);
+    }
+    window.__breshiaFavsSent = function () { return stFavSent; };
+    stFavs();
+    /* дешёвый сторож подборки: снимок шлём при изменении, а не в каждом обработчике —
+       так «слушать подборку» и импорт чужой подборки тоже попадают в счёт без правок в них */
+    setInterval(stFavs, 1500);
+    /* play: раз на запуск (в т.ч. resume после паузы — по контракту это новое включение) */
+    var stLastPlayKey = "", stLastPlayAt = 0;
+    audio.addEventListener("play", function () {
+      var t = mTrack(); if (!t) return;
+      stLStart(t);
+      var key = t.slug + "@" + Math.round((audio.currentTime || 0) * 10);
+      if (key === stLastPlayKey && Date.now() - stLastPlayAt < 400) return;   /* одно нажатие — одно событие */
+      stLastPlayKey = key; stLastPlayAt = Date.now();
+      stEv({ t: "play", s: t.slug });
+    });
+    audio.addEventListener("pause", function () { stLTick(); stLFlush(); });
+    audio.addEventListener("ended", function () {
+      stLTick(); stLFlush();
+      var t = mTrack(); if (t) stEv({ t: "finish", s: t.slug });
+    });
+    /* пропуск: переключились раньше 15 секунд — вызывается из loadTrack до смены src */
+    window.__breshiaStSkip = function (prevIdx) {
+      if (!ST_ON) return;
+      stLTick();
+      if (prevIdx >= 0 && NEW[prevIdx] && audio.currentTime > 0 && audio.currentTime < 15) {
+        stEv({ t: "skip", s: NEW[prevIdx].slug });
+      }
+      stLFlush();
+    };
+  }
   function mEvent(name, t) {
     var data = { goal: name, slug: t ? t.slug : null, title: t ? t.title : null,
                  pos: Math.round(audio.currentTime || 0),
@@ -1325,6 +1453,17 @@
   window.addEventListener("resize", redrawAll);
   if (document.readyState === "complete") setTimeout(redrawAll, 0);
   window.addEventListener("load", function () { setTimeout(redrawAll, 0); });
+
+  /* --- липкая панель: --bar-h должен совпадать с ФАКТИЧЕСКОЙ высотой панели ---
+     В CSS стояли «на глаз» 118px/150px, а панель выходит 121/161: последние 3–11 px страницы
+     (подвал, а в нём строка статистики 4A) уезжали под плеер. Меряем и пишем реальное значение. */
+  function syncBarHeight() {
+    var h = player ? player.offsetHeight : 0;
+    if (h) document.documentElement.style.setProperty("--bar-h", h + "px");
+  }
+  if (player && window.ResizeObserver) { try { new ResizeObserver(syncBarHeight).observe(player); } catch (e) {} }
+  window.addEventListener("resize", syncBarHeight);
+  syncBarHeight();
 
   /* init: restore selected track (src only, no autoplay); teaser → neutral */
   updateTeaserUI();

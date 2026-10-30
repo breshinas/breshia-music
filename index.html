@@ -29,7 +29,7 @@
 
   <div class="hero-inner">
     <div class="hero-text">
-      <p class="eyebrow">Breshia · <b>новое</b> · 2026</p>
+      <p class="eyebrow">Breshia · <b>новое</b> · 2026<span class="online" id="onlineBadge" hidden></span></p>
       <h1 class="band">Bre<em>shia</em></h1>
       <p class="meta-line" id="heroLine">2026 · Девочка с лопатой</p>
       <p class="tagline" id="heroStats"></p>
@@ -127,6 +127,7 @@
 
 <footer>
   <p class="stats-line" id="statsLine" hidden></p>
+  <p class="stats-line live-line" id="liveStats" hidden></p>
   <span>© 2026 Breshia</span>
   <span id="footSite">breshia-music.ru</span>
 </footer>
@@ -146,7 +147,7 @@
         <span class="cover np-cover"></span>
       </span>
       <span class="t">
-        <span class="np-name" id="pName">—</span>
+        <span class="np-name-row"><span class="np-name" id="pName">—</span><span class="np-cnt" id="pCnt" hidden></span></span>
         <span class="np-sub" id="pSub">Breshia</span>
       </span>
     </div>
@@ -257,5 +258,6 @@
 <script src="assets/data.js"></script>
 <script src="assets/stats.js"></script>
 <script src="assets/app.js"></script>
+<script src="assets/counters.js"></script>
 </body>
 </html>

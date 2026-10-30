@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="googlebot" content="noindex,nofollow">
+<title>Статистика — Breshia</title>
+<meta name="theme-color" content="#C8F13A">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<link rel="shortcut icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body class="stats-page">
+
+<main class="st-wrap">
+  <header class="st-top">
+    <a class="st-brand" href="../">Bre<em>shia</em></a>
+    <p class="st-eyebrow">внутренняя статистика</p>
+    <h1 class="st-h1">Что и сколько слушают</h1>
+    <p class="st-live" id="stLive" aria-live="polite">
+      <span class="st-dot" aria-hidden="true"></span><span class="st-live-txt" id="stLiveTxt">подключение…</span>
+    </p>
+  </header>
+
+  <p class="st-empty" id="stEmpty" hidden>нет связи с приёмником</p>
+
+  <section class="st-cards" id="stCards" aria-label="Сводка" hidden>
+    <div class="st-card">
+      <span class="st-lab">Сейчас на сайте</span>
+      <b class="st-val" id="sumOnline">—</b>
+    </div>
+    <div class="st-card">
+      <span class="st-lab">Зашло</span>
+      <b class="st-val" id="sumSessions">—</b>
+    </div>
+    <div class="st-card">
+      <span class="st-lab">Уникальных</span>
+      <b class="st-val" id="sumVisitors">—</b>
+    </div>
+    <div class="st-card">
+      <span class="st-lab">Прослушиваний</span>
+      <b class="st-val" id="sumPlays">—</b>
+    </div>
+    <div class="st-card">
+      <span class="st-lab">Суммарно прослушано</span>
+      <b class="st-val" id="sumListen">—</b>
+    </div>
+    <div class="st-card">
+      <span class="st-lab">В Любимых</span>
+      <b class="st-val" id="sumFavs">—</b>
+    </div>
+  </section>
+
+  <div class="st-bar-row">
+    <div class="st-ranges" role="group" aria-label="Диапазон">
+      <button type="button" class="st-range is-on" data-range="all" aria-pressed="true">всё время</button>
+      <button type="button" class="st-range" data-range="today" aria-pressed="false">сегодня</button>
+      <button type="button" class="st-range" data-range="7d" aria-pressed="false">7 дней</button>
+      <button type="button" class="st-range" data-range="30d" aria-pressed="false">30 дней</button>
+    </div>
+    <span class="st-updated" id="stUpdated"></span>
+  </div>
+
+  <section class="st-table" id="stTable" hidden aria-label="По трекам">
+    <div class="st-head" aria-hidden="true">
+      <span>Трек</span><span>Прослуш.</span><span>Время</span><span>Среднее</span><span>♥</span><span>Последний раз</span>
+    </div>
+    <div class="st-rows" id="stRows"></div>
+  </section>
+</main>
+
+<script src="../assets/data.js"></script>
+<script src="stats.js"></script>
+</body>
+</html>

@@ -579,3 +579,144 @@ footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--f
 @media (max-width:400px){
   .track-card{gap:8px;padding:12px 8px}
 }
+
+/* ==================== /stats/ — внутренняя страница статистики ====================
+   Отдельная страница (нигде не слинкована, noindex). Тёмная тема сайта, те же переменные.
+   Всё — на префиксе .st-, чтобы не задеть стили главной. Переполнений нет по построению:
+   сетки на minmax(0,…), длинные значения переносятся, на ≤760 px таблица становится карточками. */
+body.stats-page{padding-bottom:0}
+/* секции на сайте — с крупными отступами (section{padding:clamp(56px,10vw,116px) 0}),
+   на странице статистики это давало пустоту в 116 px над карточками и таблицей: гасим */
+body.stats-page section{padding:0;border-top:0}
+.st-wrap{max-width:1080px;margin:0 auto;padding:clamp(20px,4vw,52px) clamp(14px,4vw,40px) 64px}
+.st-top{margin-bottom:26px}
+.st-brand{display:inline-block;font-family:var(--serif);font-weight:700;font-size:21px;
+  text-decoration:none;margin-bottom:18px}
+.st-brand em{font-style:italic;font-weight:500;color:var(--accent)}
+.st-eyebrow{margin:0 0 8px;font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--accent);font-weight:600}
+.st-h1{font-family:var(--serif);font-weight:600;font-size:clamp(24px,4.6vw,38px);line-height:1.1;
+  margin:0 0 12px;letter-spacing:-.01em}
+.st-live{display:flex;align-items:center;gap:9px;margin:0;font-size:12.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint)}
+.st-dot{width:8px;height:8px;border-radius:50%;background:var(--line-2);flex:0 0 auto}
+.st-live.on{color:var(--accent)}
+.st-live.on .st-dot{background:var(--accent);box-shadow:0 0 0 0 rgba(200,241,58,.6);
+  animation:st-pulse 2s infinite}
+.st-live.warn{color:#E2B33A}
+.st-live.warn .st-dot{background:#E2B33A}
+@keyframes st-pulse{
+  0%{box-shadow:0 0 0 0 rgba(200,241,58,.55)}
+  70%{box-shadow:0 0 0 9px rgba(200,241,58,0)}
+  100%{box-shadow:0 0 0 0 rgba(200,241,58,0)}
+}
+.st-empty{margin:26px 0;padding:22px;border:1px dashed var(--line-2);border-radius:6px;
+  color:var(--muted);font-size:14px;background:var(--surface)}
+
+.st-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(162px,1fr));
+  gap:clamp(8px,1.2vw,14px);margin:0 0 22px}
+.st-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:clamp(12px,1.7vw,18px);min-width:0;display:flex;flex-direction:column;gap:6px}
+.st-lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  line-height:1.35;overflow-wrap:anywhere}
+.st-val{font-family:var(--serif);font-weight:600;font-size:clamp(20px,2.6vw,27px);line-height:1.15;
+  color:var(--ink);overflow-wrap:anywhere;margin-top:auto}   /* значения на одной линии, даже если подпись в две строки */
+.st-bump{animation:st-bump .45s ease-out}
+@keyframes st-bump{0%{color:var(--accent)}100%{color:var(--ink)}}
+
+.st-bar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin:0 0 12px}
+.st-ranges{display:flex;gap:8px;flex-wrap:wrap}
+.st-range{height:38px;padding:0 15px;border-radius:4px;border:1px solid var(--line-2);background:none;
+  color:var(--muted);font-family:inherit;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;
+  cursor:pointer;transition:color .2s,border-color .2s,background .2s;white-space:nowrap}
+.st-range:hover{color:var(--ink);border-color:var(--accent)}
+.st-range.is-on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.st-updated{font-size:11.5px;color:var(--faint);letter-spacing:.05em;white-space:nowrap}
+
+.st-table{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.st-head,.st-row{display:grid;
+  grid-template-columns:minmax(0,1fr) 100px 106px 96px 50px 110px;
+  gap:10px;align-items:center;padding:11px clamp(12px,1.6vw,18px)}
+.st-head{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
+  border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
+.st-head span:not(:first-child),.st-row .st-c:not(.st-name){text-align:right}
+.st-row{border-bottom:1px solid rgba(38,38,42,.7);font-size:14px;min-width:0}
+.st-row:last-child{border-bottom:0}
+.st-row.is-zero{opacity:.52}
+.st-c{min-width:0;overflow-wrap:anywhere}
+.st-name{display:flex;flex-direction:column;gap:2px;text-align:left}
+.st-title{font-weight:600;font-size:14.5px;line-height:1.3;overflow-wrap:anywhere}
+.st-slug{font-style:normal;font-size:11px;color:var(--faint);letter-spacing:.04em;overflow-wrap:anywhere}
+.st-plays{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.st-plays .v{font-variant-numeric:tabular-nums;font-weight:600}
+.st-bar{display:block;width:100%;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
+.st-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .5s ease}
+.st-listen .v,.st-avg .v,.st-fav .v,.st-last .v{font-variant-numeric:tabular-nums;color:var(--muted);
+  font-weight:500;font-size:13px}
+.st-fav .v{color:var(--ink)}
+.st-last .v{font-size:12.5px}
+
+@media (max-width:760px){
+  .st-head{display:none}
+  .st-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 12px;
+    padding:14px clamp(12px,3.4vw,16px);font-size:13.5px}
+  .st-name{grid-column:1 / -1;padding-bottom:2px}
+  .st-row .st-c:not(.st-name){text-align:left}
+  .st-c::before{content:attr(data-l);display:block;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--faint);margin-bottom:3px;overflow-wrap:anywhere}
+  .st-plays{align-items:flex-start}
+  .st-bar{max-width:120px}
+  .st-updated{display:none}
+}
+@media (max-width:430px){
+  .st-ranges{gap:6px}
+  .st-range{height:36px;padding:0 11px;font-size:11.5px}
+  .st-card{padding:12px}
+}
+
+/* ==================== счётчики статистики (варианты владельца 1A/2A/3A/4A/4B) ====================
+   Источник — свой приёмник (assets/counters.js). Цифр нет / приёмник недоступен — элементов не видно:
+   скрипт создаёт их только когда есть данные, а статичные места (подвал, бейдж, панель) лежат с hidden. */
+
+/* 1A: тихая «▶ 1,2 тыс» в правом кластере карточки */
+.tc-num{font-size:12px;line-height:1;color:var(--muted);letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;white-space:nowrap;flex:0 0 auto}
+.tc-num::before{content:"▶";font-size:8px;color:var(--faint);margin-right:4px;vertical-align:1px}
+/* на ≤900 цифра переезжает в строку под названием — ширину заголовка не отнимает
+   (та же причина, что когда-то убрала .tc-eq/.tc-dur: колонка текста ≈110 px) */
+.tc-sub .tc-num{margin-left:8px}
+
+/* 3A: «▶ 8,2 тыс» в строке названия панели плеера */
+.np-name-row{display:flex;align-items:baseline;gap:10px;min-width:0}
+.np-name-row .np-name{min-width:0}
+.np-cnt{font-size:11.5px;color:var(--muted);letter-spacing:.04em;font-variant-numeric:tabular-nums;
+  white-space:nowrap;flex:0 0 auto}
+.np-cnt::before{content:"▶";font-size:7.5px;color:var(--faint);margin-right:3px;vertical-align:1px}
+.np-cnt[hidden]{display:none}
+@media (max-width:430px){
+  /* на 390 в строке названия цифре не хватает места — уходит второй строкой, название целое */
+  .np-name-row{flex-wrap:wrap;gap:2px 10px}
+  .np-name-row .np-name{flex:1 1 100%}
+  .np-cnt{font-size:11px;line-height:1.35}
+}
+
+/* 4B: бейдж «● N онлайн» рядом с надписью Breshia (при нуле скрыт) */
+.online{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;margin-left:12px;border-radius:999px;
+  border:1px solid var(--line-2);background:rgba(21,21,23,.7);color:var(--accent);
+  font-size:11px;line-height:1.3;letter-spacing:.06em;font-weight:600;
+  white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
+.online[hidden]{display:none}
+.online b{color:var(--accent);font-weight:600}
+.online i{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:0 0 auto;
+  box-shadow:0 0 0 0 rgba(200,241,58,.5);animation:cnt-pulse 2s ease-out infinite}
+@keyframes cnt-pulse{
+  0%{box-shadow:0 0 0 0 rgba(200,241,58,.5)}
+  70%{box-shadow:0 0 0 7px rgba(200,241,58,0)}
+  100%{box-shadow:0 0 0 0 rgba(200,241,58,0)}
+}
+
+/* 4A: строка в подвале */
+.live-line{font-variant-numeric:tabular-nums}
+.live-line b{color:var(--ink);font-weight:600}
+@media (max-width:430px){ .online{margin-left:8px;padding:3px 8px;font-size:10.5px} }
