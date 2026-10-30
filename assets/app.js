@@ -1259,7 +1259,11 @@
     setInterval(stLTick, ST_TICK * 1000);
     setInterval(function () { if (!audio.paused) stLFlush(); }, 30000);   /* раз в 30 с во время игры */
     stEv({ t: "visit" });
-    /* beat: страница открыта. Тишина, пока вкладка не видима (иначе «онлайн» врёт) */
+    /* beat: страница открыта. Первый — СРАЗУ при загрузке: иначе «сейчас на сайте» врёт
+       20 секунд, а если человек перезагружает страницу чаще, чем раз в 20 с, он не попадёт
+       в счёт вообще (живой случай 30.10: 4 visit за 33 с и ни одного beat → «0 онлайн»).
+       Дальше — каждые 20 с, тишина, пока вкладка не видима (background не должен врать). */
+    stEv({ t: "beat" });
     setInterval(function () { if (!document.hidden) stEv({ t: "beat" }); }, 20000);
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) { stLTick(); stLFlush(true); }

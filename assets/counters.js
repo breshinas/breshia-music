@@ -19,7 +19,9 @@
     : (window.BRESHIA_COUNTERS || {});
   var API = CFG.api || "";
   var ON = !!(CFG.enabled !== false && API);
-  var REFRESH_MS = 30000;
+  /* 15 с, а не 30: «сейчас на сайте» — единственная цифра, где задержка режет глаз.
+     Запрос лёгкий (несколько КБ), на главной и на страницах песен это одна штука в 15 с. */
+  var REFRESH_MS = 15000;
 
   var STATE = null;          /* последний ответ /api/stats */
   var WIRE = {};             /* чтобы не пересобирать элементы на каждом обновлении */
@@ -151,6 +153,9 @@
 
   if (ON) {
     load();
+    /* второй заход через 3 с: свой visit/beat уходит в момент загрузки, и без этого
+       «сейчас на сайте» показывало бы 0 до следующего цикла */
+    setTimeout(load, 3000);
     setInterval(function () { if (!document.hidden) load(); }, REFRESH_MS);
     document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });
   }
