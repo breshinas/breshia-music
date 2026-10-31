@@ -664,7 +664,6 @@
   function loadTrack(i, autoplay) {
     if (i < 0 || i >= NEW.length || !isPlayable(NEW[i])) return;   /* teasers are never loaded */
     if (i !== cur) {
-      try { mMaybeSkip(cur); } catch (e) {}                       /* метрика: ушли раньше 15 секунд */
       try { if (window.__breshiaStSkip) window.__breshiaStSkip(cur); } catch (e) {}   /* свой приёмник: skip + остаток секунд */
     }
     cur = i;
@@ -1222,31 +1221,12 @@
   audio.addEventListener("error", function () { stopRaf(); setButtonState("error"); updateTimes(); });
   audio.addEventListener("timeupdate", function () { if (audio.paused) { updateTimes(); refreshWave(); } });
 
-  /* ==================== метрики: счётчик Метрики + события плеера ====================
-     Включается данными: window.BRESHIA.metrics.yandexCounter (номер счётчика). Пока его нет —
-     ни строчки наружу не уходит, страница работает как раньше. События уходят целями в Метрику
-     (play / play_30 / play_50 / finish / skip) и, если задан endpoint, ещё и на свой сборщик
-     через sendBeacon — так ничего не тормозит плеер и не ломается при недоступном приёмнике. */
-  var M = B.metrics || {};
-  var YM_ID = M.yandexCounter || null;
-  var M_ENDPOINT = M.endpoint || null;
-  if (YM_ID) {
-    window.ym = window.ym || function () { (window.ym.a = window.ym.a || []).push(arguments); };
-    (function () {
-      var s = document.createElement("script");
-      s.async = true;
-      s.src = "https://mc.yandex.ru/metrika/tag.js";
-      document.head.appendChild(s);
-    })();
-    ym(YM_ID, "init", { clickmap: false, trackLinks: true, accurateTrackBounce: true, webvisor: false });
-  }
-  var mFired = {};
   function mTrack() { return (cur >= 0 && NEW[cur]) ? NEW[cur] : null; }
 
   /* ==================== свой приёмник событий (статистика, docs/stats-api.md) ====================
      Включается ТОЛЬКО данными: window.BRESHIA.stats = {endpoint, enabled, stream}. Нет endpoint или
-     enabled === false — ни одного запроса наружу (как и с Метрикой). Канал отдельный от целей Метрики:
-     те шлют goal, а здесь — плоский контракт бекенда {v,t,s,sec,favs,k,pl}.
+     enabled === false — ни одного запроса наружу. Контракт плоский:
+     {v,t,s,sec,favs,k,pl}.
      События: visit (1 раз на загрузку), beat (каждые 20 с; несёт sec — сколько посетитель был В СЕТИ),
      play, listen (накопленные секунды), skip (ушли раньше 15 с), finish (дослушали), favs (снимок подборки),
      share (шеринг песни или подборки в момент нажатия). */
@@ -1430,52 +1410,6 @@
       stLFlush();
     };
   }
-  function mEvent(name, t) {
-    var data = { goal: name, slug: t ? t.slug : null, title: t ? t.title : null,
-                 pos: Math.round(audio.currentTime || 0),
-                 dur: Math.round(audio.duration || (t && t.duration) || 0) };
-    if (YM_ID && window.ym) ym(YM_ID, "reachGoal", name, data);
-    if (M_ENDPOINT && navigator.sendBeacon) {
-      try { navigator.sendBeacon(M_ENDPOINT, JSON.stringify(data)); } catch (e) {}
-    }
-  }
-  function mOnce(key, name, t) { if (!mFired[key]) { mFired[key] = true; mEvent(name, t); } }
-  audio.addEventListener("play", function () {
-    var t = mTrack(); if (!t) return;
-    mFired = {};                       /* пороги считаем заново для нового трека */
-    mOnce(t.slug + ":play", "play", t);
-  });
-  audio.addEventListener("timeupdate", function () {
-    var t = mTrack(), d = audio.duration || 0;
-    if (!t || audio.paused || !d) return;
-    if (audio.currentTime >= 30) mOnce(t.slug + ":p30", "play_30", t);
-    if (audio.currentTime / d >= 0.5) mOnce(t.slug + ":p50", "play_50", t);
-  });
-  audio.addEventListener("ended", function () { var t = mTrack(); if (t) mEvent("finish", t); });
-  /* пропуск: переключились раньше 15 секунд — считаем отдельно */
-  function mMaybeSkip(prevIdx) {
-    if (prevIdx >= 0 && audio.currentTime > 0 && audio.currentTime < 15 && NEW[prevIdx]) {
-      mEvent("skip", NEW[prevIdx]);
-    }
-  }
-
-  /* ==================== счётчики на странице ====================
-     Числа кладёт tools/metrics.py (по крону) в assets/stats.js из API Метрики: из браузера
-     Метрику не прочитать. Нет данных — блока просто не видно. */
-  (function showStats() {
-    var box = $("statsLine"), st = window.BRESHIA_STATS;
-    if (!box || !st) return;
-    function n(v) { return (v == null) ? null : String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
-    var bits = [];
-    if (st.users30 != null) bits.push(n(st.users30) + " " + plural(st.users30, "слушатель", "слушателя", "слушателей") + " за 30 дней");
-    if (st.finished30) bits.push(n(st.finished30) + " " + plural(st.finished30, "трек", "трека", "треков") + " дослушано до конца");
-    else if (st.plays30 != null) bits.push(n(st.plays30) + " " + plural(st.plays30, "включение", "включения", "включений"));
-    if (st.visits7 != null) bits.push(n(st.visits7) + " " + plural(st.visits7, "визит", "визита", "визитов") + " за неделю");
-    if (!bits.length) return;
-    box.textContent = bits.join(" · ") + (st.updated ? " · обновлено " + st.updated : "");
-    box.hidden = false;
-  })();
-
   /* controls */
   playBtn.addEventListener("click", toggle);
   prevBtn.addEventListener("click", prevTrack);

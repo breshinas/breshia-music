@@ -203,7 +203,7 @@ h2{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.4vw,44px);lin
 
 footer{padding:36px var(--pad) 28px;max-width:1120px;margin:0 auto;color:var(--faint);font-size:12.5px;
   display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line)}
-/* счётчики прослушиваний (числа кладёт tools/metrics.py в assets/stats.js) */
+/* строка статистики в подвале (наполняет counters.js из своего приёмника) */
 .stats-line{flex:0 0 100%;margin:0;order:-1;color:var(--muted);font-size:12.5px;letter-spacing:.01em}
 .stats-line[hidden]{display:none}
 
