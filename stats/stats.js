@@ -121,6 +121,8 @@
     elTable.hidden = false;
 
     var tot = data.totals || {};
+    /* было «Сейчас на сайте» (data.online) — содержимое заменено на всего посетителей */
+    put(document.getElementById("sumOnline"), N(tot.visitors || 0));
     put(document.getElementById("sumSessions"), N(tot.sessions || 0));
     put(document.getElementById("sumVisitors"), N(tot.visitors || 0));
     put(document.getElementById("sumPlays"), N(tot.plays || 0));
