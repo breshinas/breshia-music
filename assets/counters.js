@@ -4,7 +4,7 @@
      2A — строка под кнопками на странице песни (/t/<slug>/);
      3A — «▶ 8,2 тыс» в строке названия в панели плеера;
      4A — строка в подвале «Сколько посетило сайт N · всего M прослушиваний»;
-     4B — бейдж «● N онлайн» в шапке у надписи Breshia (при нуле скрыт).
+     4B — бейдж «● N онлайн» в шапке — СНЯТ (владелец: «сейчас на сайте» не показывать).
    Данные — свой приёмник (docs/stats-api.md), конфиг — из данных:
    на главной window.BRESHIA.stats (data.js), на странице песни window.BRESHIA_COUNTERS
    (его кладёт tools/trackbase.py gen из база/tracks.json).
@@ -134,12 +134,8 @@
         nf(STATE.totals.plays || 0) + "</b> " + plural(STATE.totals.plays || 0, "прослушивание", "прослушивания", "прослушиваний");
       line.hidden = false;
     }
-    var badge = document.getElementById("onlineBadge");
-    if (badge) {
-      var on = Number(STATE.online) || 0;
-      if (on > 0) { badge.hidden = false; badge.innerHTML = "<i></i><b>" + nf(on) + "</b> онлайн"; }
-      else { badge.hidden = true; }
-    }
+    /* 4B (бейдж «● N онлайн» у логотипа) по требованию владельца СНЯТ:
+       «сейчас на сайте» больше нигде не показываем, только сколько посетило сайт. */
   }
 
   function paintAll() { placeNumbers(); paintPanel(); paintTrackLine(); paintTotals(); }

@@ -121,7 +121,6 @@
     elTable.hidden = false;
 
     var tot = data.totals || {};
-    put(document.getElementById("sumOnline"), N(data.online || 0));
     put(document.getElementById("sumSessions"), N(tot.sessions || 0));
     put(document.getElementById("sumVisitors"), N(tot.visitors || 0));
     put(document.getElementById("sumPlays"), N(tot.plays || 0));
