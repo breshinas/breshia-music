@@ -127,7 +127,7 @@
       heroPlay.classList.toggle("hookon", live);
       heroPlay.setAttribute("aria-pressed", live ? "true" : "false");
       var lab = heroPlay.querySelector(".label");
-      if (lab) lab.textContent = live ? "Пауза · тизер" : ("Тизер · припев — " + ((HOOK.durationText) || "0:20"));
+      if (lab) lab.textContent = live ? "Пауза · тизер" : ("Тизер — " + ((HOOK.durationText) || "0:20"));
     }
     paintHookBar();
   }
@@ -358,8 +358,10 @@
      а не релизом; ♥ нет — в подборку анонс не добавляется */
   function hookCardInner(t) {
     var dur = (HOOK && HOOK.durationText) || "0:20";
-    var sub = (t.year ? t.year + " · " : "") + "тизер · припев · " + dur +
-              " · премьера " + releaseLabel(t);
+    /* «припев» в подписи — враньё для трейлера, нарезанного с начала песни: длина тизера и есть правда.
+       Дату премьеры держим неразрывными пробелами, иначе «20» и «ноября» расходятся по строкам. */
+    var sub = (t.year ? t.year + " · " : "") + "тизер · " + dur +
+              " · премьера\u00A0" + releaseLabel(t).replace(/ /g, "\u00A0");
     return '<img class="cover" src="' + esc(t.cover) + '" alt="Обложка «' + esc(t.title) + '»" width="96" height="96" loading="lazy" decoding="async">' +
       '<div class="tc-body">' +
         '<h3 class="tc-title">' + esc(t.title) + '</h3>' +
@@ -372,7 +374,7 @@
         '<span class="tc-dur">' + esc(dur) + '</span>' +
         '<span class="tc-play" aria-hidden="true"></span>' +
       '</div>' +
-      '<button class="tc-hit" type="button" aria-label="Послушать тизер: ' + esc(t.title) + ' — 20 секунд припева"></button>';
+      '<button class="tc-hit" type="button" aria-label="Послушать тизер: ' + esc(t.title) + ' — ' + ((HOOK && HOOK.durationText) || "0:20") + '"></button>';
   }
 
   function wireCard(rec) {
@@ -1151,8 +1153,8 @@
       if (leftH != null && leftH > 0) buildHeroCells(leftH);
       heroPlay.disabled = false; heroPlay.classList.remove("is-soon");
       heroPlay.setAttribute("aria-disabled", "false");
-      heroPlay.setAttribute("aria-label", "Послушать тизер: " + t.title + " — 20 секунд припева");
-      if (!hookPlaying && label) label.textContent = "Тизер · припев — " + ((HOOK.durationText) || "0:20");
+      heroPlay.setAttribute("aria-label", "Послушать тизер: " + t.title + " — " + ((HOOK.durationText) || "0:20"));
+      if (!hookPlaying && label) label.textContent = "Тизер — " + ((HOOK.durationText) || "0:20");
       paintHookBar();
       return;
     }
