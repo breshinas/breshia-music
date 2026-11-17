@@ -103,6 +103,31 @@
     return d ? Math.min(1, Math.max(0, ((hookEl && hookEl.currentTime) || 0) / d)) : 0;
   }
 
+  /* Какой источник СЕЙЧАС озвучивает страницу: тизер-хук или основной плеер.
+     Плашка, волна и таймеры обязаны следовать за звуком, а не за последним
+     выбранным треком — иначе клик по тизеру играет один трек, а панель врёт
+     про другой (казалось, что «плеер завис»). */
+  function hookActive() { return hasHook() && (hookSel || hookPlaying || !!(hookEl && !hookEl.paused)); }
+
+  /* плашка в режиме тизера: название анонса, кнопка «тизер», своё время */
+  var hookSec = -1;
+  function renderHookMeta() {
+    var t = NEW[hookIdx]; if (!t) return;
+    var d = hookDuration() || 0, ct = (hookEl && hookEl.currentTime) || 0;
+    setCover(t.cover);
+    pName.textContent = t.title;
+    pSub.textContent = ARTIST + " · тизер" + (d ? " · " + fmt(d) : "");
+    tNow.textContent = fmt(ct);
+    tRem.textContent = "-" + fmt(Math.max(0, d - ct));
+    var hr = d ? Math.min(1, Math.max(0, ct / d)) : 0;
+    waveWrap.setAttribute("aria-valuenow", Math.round(hr * 100));
+    waveWrap.setAttribute("aria-valuetext", fmt(ct) + " из " + fmt(d));
+    seekText.textContent = fmt(ct) + " из " + fmt(d);
+    hookSec = Math.floor(ct);
+    syncMediaSession(t);
+    updateCards();
+  }
+
   function paintHookBar() {
     var bar = $("heroHookBar"), fill = $("heroHookFill");
     if (!bar || !fill) return;
@@ -130,6 +155,7 @@
       if (lab) lab.textContent = live ? "Пауза · тизер" : ("Тизер — " + ((HOOK.durationText) || "0:20"));
     }
     paintHookBar();
+    if (hookSel || live) renderHookMeta();   /* плашка следует за звучащим тизером */
   }
 
   function paintHookProgress() {
@@ -137,6 +163,14 @@
     var rec = cards[hookIdx];
     if (rec && rec.canvas) drawWave(rec.canvas, hookPeaks(), hookRatio(), true);
     paintHookBar();
+    if (hookSel || hookPlaying) {            /* таймер плашки — тизера, раз в секунду */
+      var d = hookDuration() || 0, ct = (hookEl && hookEl.currentTime) || 0, sec = Math.floor(ct);
+      if (sec !== hookSec) {
+        hookSec = sec;
+        tNow.textContent = fmt(ct);
+        tRem.textContent = "-" + fmt(Math.max(0, d - ct));
+      }
+    }
   }
 
   function hookDrawLoop() { hookRaf = requestAnimationFrame(hookDrawLoop); paintHookProgress(); }
@@ -145,10 +179,12 @@
 
   function hookStop() {          /* глушим хук совсем — человек запустил обычный трек */
     if (!hookEl) return;
+    var wasActive = hookActive();
     try { hookEl.pause(); } catch (e) {}
     try { if (hookEl.currentTime) hookEl.currentTime = 0; } catch (e) {}
     hookPlaying = false; hookSel = false; hookRafStop();
     paintHook();
+    if (wasActive) { renderMeta(); updateTimes(); }   /* плашка возвращается к основному треку */
   }
   function hookToggle() {
     if (!hasHook() || !hookEl) return;
@@ -166,7 +202,7 @@
   if (hookEl) {
     hookEl.addEventListener("play", function () { hookPlaying = true; hookSel = true; paintHook(); hookRafStart(); });
     hookEl.addEventListener("pause", function () { hookPlaying = false; hookRafStop(); paintHook(); });
-    hookEl.addEventListener("ended", function () { hookPlaying = false; hookSel = false; hookRafStop(); paintHook(); });   /* доиграл — тишина, без перезапуска */
+    hookEl.addEventListener("ended", function () { hookPlaying = false; hookSel = false; hookRafStop(); paintHook(); renderMeta(); updateTimes(); });   /* доиграл — тишина, плашка назад к основному треку */
     hookEl.addEventListener("timeupdate", function () { if (hookEl.paused) paintHookProgress(); });
     hookEl.addEventListener("error", function () { hookPlaying = false; hookSel = false; paintHook(); });
   }
@@ -586,6 +622,10 @@
   }
 
   function refreshWave() {
+    if (hookActive()) {                 /* волна плашки = тизер, а не выбранный трек */
+      drawWave(waveCanvas, hookPeaks(), hookRatio(), false);
+      return;
+    }
     if (cur < 0) { idleWave(); return; }
     var t = NEW[cur];
     var r = currentRatio();
@@ -594,6 +634,7 @@
   }
 
   function updateTimes() {
+    if (hookActive()) { renderHookMeta(); return; }
     var t = curTrack();
     var ct = audio.currentTime || 0;
     var d = audio.duration || (t && t.duration) || 0;
@@ -608,10 +649,11 @@
 
   function updateCards() {
     var playing = !audio.paused && !audio.error;
+    var hookOn = hookActive();
     cards.forEach(function (c) {
       var t = NEW[c.i];
       if (isHookTrack(t)) return;               /* анонс-хук живёт своим состоянием (paintHook) */
-      var active = (c.i === cur) && isPlayable(t);
+      var active = !hookOn && (c.i === cur) && isPlayable(t);
       c.art.classList.toggle("is-active", active);
       c.art.classList.toggle("is-playing", active && playing);
       c.btn.setAttribute("aria-pressed", (active && playing) ? "true" : "false");
@@ -670,6 +712,7 @@
     if (i !== cur) {
       try { if (window.__breshiaStSkip) window.__breshiaStSkip(cur); } catch (e) {}   /* свой приёмник: skip + остаток секунд */
     }
+    if (hookActive()) hookStop();   /* звучащий тизер не должен держать плашку, уходя в фон */
     cur = i;
     var t = NEW[cur];
     waveFlash();                 /* dim the wave so new peaks don't pop in */
@@ -1432,13 +1475,18 @@
     return r.width ? Math.min(1, Math.max(0, (clientX - r.left) / r.width)) : 0;
   }
   function applySeek(ratio) {
+    if (hookActive()) {                 /* тянем волну тизера — перематываем тизер */
+      var hd = hookDuration();
+      if (hd) { try { hookEl.currentTime = ratio * hd; } catch (e) {} }
+      updateTimes(); refreshWave(); return;
+    }
     var t = curTrack(); if (!t) return;
     var d = audio.duration || t.duration || 0;
     if (d) audio.currentTime = ratio * d;
     updateTimes(); refreshWave();
   }
   waveWrap.addEventListener("pointerdown", function (e) {
-    if (cur < 0) return;
+    if (cur < 0 && !hookActive()) return;
     if (!audio.src) loadTrack(cur, false);
     dragging = true; waveWrap.classList.add("dragging");
     try { waveWrap.setPointerCapture(e.pointerId); } catch (err) {}
@@ -1453,8 +1501,8 @@
   waveWrap.addEventListener("keydown", function (e) {
     var t = curTrack(); if (!t) return;
     var d = audio.duration || t.duration || 0;
-    if (e.key === "ArrowRight") { e.preventDefault(); audio.currentTime = Math.min(d, (audio.currentTime || 0) + 5); updateTimes(); refreshWave(); }
-    else if (e.key === "ArrowLeft") { e.preventDefault(); audio.currentTime = Math.max(0, (audio.currentTime || 0) - 5); updateTimes(); refreshWave(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); if (hookActive()) applySeek(Math.min(1, hookRatio() + 5 / (hookDuration() || 1))); else { audio.currentTime = Math.min(d, (audio.currentTime || 0) + 5); updateTimes(); refreshWave(); } }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); if (hookActive()) applySeek(Math.max(0, hookRatio() - 5 / (hookDuration() || 1))); else { audio.currentTime = Math.max(0, (audio.currentTime || 0) - 5); updateTimes(); refreshWave(); } }
   });
 
   /* global keyboard: Space = toggle, arrows = ±5s */
