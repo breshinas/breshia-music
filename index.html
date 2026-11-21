@@ -29,17 +29,17 @@
 
   <div class="hero-inner">
     <div class="hero-text">
-      <p class="eyebrow">Breshia · <b>новое</b> · 2026<span class="online" id="onlineBadge" hidden></span></p>
+      <p class="eyebrow"><span id="eyebrowText">Breshia · новое</span><span class="online" id="onlineBadge" hidden></span></p>
       <h1 class="band">Bre<em>shia</em></h1>
-      <p class="meta-line" id="heroLine">2026 · Девочка с лопатой</p>
+      <p class="meta-line" id="heroLine">Breshia</p>
       <p class="tagline" id="heroStats"></p>
       <div class="countdown" id="heroCountdown" role="timer" aria-label="До премьеры" hidden></div>
       <div class="hero-actions">
-        <button class="btn play big is-soon" id="play" type="button" aria-label="Премьера 31 октября. Воспроизведение пока недоступно" aria-disabled="true" disabled>
+        <button class="btn play big" id="play" type="button" aria-label="Слушать">
           <svg class="i-play" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
           <svg class="i-pause" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg>
           <span class="spin" aria-hidden="true"></span>
-          <span class="label">Скоро — 31 октября</span>
+          <span class="label">Слушать</span>
         </button>
         <a class="ghost" href="#new">Новое<span class="arw" aria-hidden="true">↓</span></a>
       </div>
@@ -65,7 +65,7 @@
     <div class="sec-head">
       <span class="n">01 / Новое</span>
       <h2>Новое</h2>
-      <p>Два трека 2026 года уже вышли — нажмите, чтобы слушать. Премьера «Девочки с лопатой» — 31 октября.</p>
+      <p id="newSub"></p>
     </div>
     <div class="tracks" id="newList"></div>
   </section>

@@ -261,6 +261,31 @@
     NEW.length + " " + plural(NEW.length, "трек", "трека", "треков") +
     " · " + ARCHIVE.length + " " + plural(ARCHIVE.length, "ранний релиз", "ранних релиза", "ранних релизов") +
     " · с " + minYear();
+
+  /* Кнопка hero и подзаголовок раздела «Новое» — ИЗ ДАННЫХ, а не из вёрстки.
+     Раньше здесь стояли статичные «Премьера 31 октября / Скоро», и после релиза
+     владелец видел наверху неактуальную надпись. */
+  (function () {
+    var hp = $("play");
+    if (hp && !isHookTrack(featured) && isPlayable(featured)) {
+      hp.classList.remove("is-soon");
+      hp.disabled = false;
+      hp.removeAttribute("aria-disabled");
+      hp.setAttribute("aria-label", "Слушать: " + featured.title);
+      var lab = hp.querySelector(".label");
+      if (lab) lab.textContent = "Слушать";
+    }
+    var sub = $("newSub");
+    if (sub) {
+      var y = NEW.length ? NEW[0].year : "";
+      var cnt = 0;
+      NEW.forEach(function (t) { if (t.year === y) cnt++; });
+      sub.textContent = cnt + " " + plural(cnt, "трек", "трека", "треков") + " " + y +
+        " года — нажмите, чтобы слушать.";
+    }
+    var eb = $("eyebrowText");
+    if (eb && NEW.length) eb.textContent = "Breshia · новое · " + NEW[0].year;
+  })();
   $("footSite").textContent = SITE;
 
   /* ==================== lyrics block (flag-driven) ==================== */
